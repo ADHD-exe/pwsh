@@ -68,7 +68,8 @@ function Invoke-VerifyStep {
         }
         $text = ($out | Out-String).Trim()
         $ms   = ($out | Where-Object { $_ -match '^\d+$' } | Select-Object -Last 1)
-        $errs = @($out | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] })
+        # PSReadLine cannot load in a child with redirected I/O; that is a limit of this check, not of the profile.
+        $errs = @($out | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] -and $_.ToString() -notmatch 'PSReadLine' })
 
         if ($errs.Count -eq 0 -and $ms) {
             Write-Ok "Profile loads cleanly in a fresh pwsh ($ms ms)"

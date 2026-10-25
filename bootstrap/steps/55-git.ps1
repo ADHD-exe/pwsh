@@ -1,10 +1,14 @@
 # =============================================================================
 # 55-git.ps1 - git identity and GitHub SSH
 #
-# Two prompts, as designed:
-#   1. your GitHub username
-#   2. the public key to paste into GitHub (shown, copied to the clipboard, and
-#      the "add key" page is opened), then Enter to test it
+# Every part is checked first and skipped when it is already done:
+#   - git-lfs filters           (skipped when configured)
+#   - user.name                 (asked only when missing)
+#   - user.email                (asked only when missing)
+#   - SSH to GitHub             (tested first; if it already works, nothing else happens)
+#   - otherwise: key made if absent, the PUBLIC KEY is shown, and the installer
+#     WAITS until GitHub accepts it. It does not move on before that
+#     (type SKIP to deliberately continue without SSH).
 #
 # Nothing is overwritten: an existing user.name / user.email / key is kept.
 # The https -> ssh rewrite is only switched on AFTER an SSH login is proven, so a
@@ -56,14 +60,21 @@ function Add-GitHubHostKey {
 }
 
 function Test-GitHubSsh {
-    <# Returns the GitHub login name on success, $null otherwise. Interactive on purpose: a passphrase prompt must be able to appear. #>
-    param([string]$Ssh, [string]$KeyPath)
+    <# Returns the GitHub login name on success, $null otherwise.
+       Without -KeyPath, ssh uses whatever its normal config/agent offers (detects an already-working setup).
+       -Batch never prompts (used for that silent pre-check); without it a passphrase prompt can appear. #>
+    param([string]$Ssh, [string]$KeyPath, [switch]$Batch)
+
+    $sshArgs = @('-o', 'StrictHostKeyChecking=yes', '-o', 'ConnectTimeout=15')
+    if ($Batch)   { $sshArgs += @('-o', 'BatchMode=yes') }
+    if ($KeyPath) { $sshArgs += @('-i', $KeyPath, '-o', 'IdentitiesOnly=yes') }
+    $sshArgs += @('-T', 'git@github.com')
 
     # ssh writes its greeting to stderr. Under $ErrorActionPreference = 'Stop', Windows PowerShell 5.1 turns
     # `2>&1` on a native command into a terminating error, so relax it for this one call.
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    try { $out = & $Ssh -i $KeyPath -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -T git@github.com 2>&1 }
+    try { $out = & $Ssh @sshArgs 2>&1 }
     finally { $ErrorActionPreference = $prevEap }
     $text = ($out | Out-String)
     Write-LogLine 'SSH' $text
@@ -72,62 +83,76 @@ function Test-GitHubSsh {
     return $null
 }
 
+function Read-NonEmpty {
+    param([string]$Prompt, [string]$Pattern = '\S')
+    for ($i = 0; $i -lt 3; $i++) {
+        $v = (Read-Host $Prompt).Trim()
+        if ($v -match $Pattern) { return $v }
+        Write-Warn 'That does not look right - try again.'
+    }
+    return $null
+}
+
 function Invoke-GitStep {
     [CmdletBinding(SupportsShouldProcess)]
-    param([string]$GitUser, [switch]$Unattended, [switch]$SkipSsh)
+    param([string]$GitUser, [string]$GitEmail, [switch]$Unattended, [switch]$SkipSsh)
 
     if (-not (Test-CommandExists 'git')) { throw 'git is not available - the Core package step must run first.' }
 
-    $userEntered = $false   # true only when the name came from -GitUser or the prompt (not from an existing git config)
-
-    # ---- git-lfs filters (the old gitconfig carried these) ------------------
+    # ---- git-lfs filters ----------------------------------------------------
     if (Test-CommandExists 'git-lfs') {
-        if ($PSCmdlet.ShouldProcess('global git config', 'git lfs install')) {
+        if (Get-GitGlobal 'filter.lfs.clean') {
+            Write-Ok 'git-lfs filters already configured'
+            Add-Result -Step 'git' -Item 'git-lfs' -Status 'Skipped' -Detail 'already configured'
+        }
+        elseif ($PSCmdlet.ShouldProcess('global git config', 'git lfs install')) {
             & git lfs install --skip-repo 2>&1 | Out-Null
             Write-Ok 'git-lfs filters configured'
             Add-Result -Step 'git' -Item 'git-lfs' -Status 'Ok' -Detail 'filters configured'
         }
     }
 
-    # ---- identity -----------------------------------------------------------
+    # ---- identity: ask only for what is missing -----------------------------
     $name  = Get-GitGlobal 'user.name'
     $email = Get-GitGlobal 'user.email'
 
-    if (-not $GitUser -and $name -and $email) {
-        Write-Ok "git identity already set: $name <$email>"
-        $GitUser = $name
-    }
+    if ($name) { Write-Ok "git user.name already set: $name" }
     else {
-        if (-not $GitUser) {
-            if ($Unattended) {
-                Add-Result -Step 'git' -Item 'identity' -Status 'Warn' -Detail 'no -GitUser given and -Unattended: identity and SSH not configured'
-                Write-Warn 'No Git username supplied (-GitUser) - skipping identity and SSH.'
-                return
-            }
+        if (-not $GitUser -and -not $Unattended) {
             Write-Host ''
-            $GitUser = (Read-Host 'GitHub username (used for git user.name and for the SSH key comment)').Trim()
+            $GitUser = Read-NonEmpty 'Git username (saved as the global git user.name)'
         }
-
-        if ($GitUser -notmatch '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$') {
-            Add-Result -Step 'git' -Item 'identity' -Status 'Warn' -Detail "'$GitUser' does not look like a GitHub username - skipped"
-            Write-Warn "'$GitUser' is not a valid GitHub username - skipping git identity and SSH."
-            return
+        if ($GitUser) {
+            if ($PSCmdlet.ShouldProcess('git config --global user.name', $GitUser)) {
+                & git config --global user.name $GitUser
+                Write-Ok "git user.name = $GitUser"
+                Add-Result -Step 'git' -Item 'user.name' -Status 'Ok' -Detail $GitUser
+            }
+            $name = $GitUser
         }
-
-        $userEntered = $true
-
-        if (-not $name -and $PSCmdlet.ShouldProcess('git config --global user.name', $GitUser)) {
-            & git config --global user.name $GitUser
-            Write-Ok "git user.name = $GitUser"
+        else {
+            Add-Result -Step 'git' -Item 'user.name' -Status 'Warn' -Detail 'not set: pass -GitUser or run interactively'
+            Write-Warn 'git user.name is not set (no -GitUser given).'
         }
+    }
 
-        if (-not $email -and $PSCmdlet.ShouldProcess('git config --global user.email', "$GitUser@users.noreply.github.com")) {
-            # GitHub's privacy address: commits are attributed to the account without publishing a mailbox.
-            & git config --global user.email "$GitUser@users.noreply.github.com"
-            Write-Ok "git user.email = $GitUser@users.noreply.github.com  (change it with: git config --global user.email you@example.com)"
+    if ($email) { Write-Ok "git user.email already set: $email" }
+    else {
+        if (-not $GitEmail -and -not $Unattended) {
+            $GitEmail = Read-NonEmpty 'Email for git (saved as the global git user.email)' '^[^@\s]+@[^@\s]+\.[^@\s]+$'
         }
-
-        Add-Result -Step 'git' -Item 'identity' -Status 'Ok' -Detail "user $GitUser"
+        if ($GitEmail -and $GitEmail -match '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
+            if ($PSCmdlet.ShouldProcess('git config --global user.email', $GitEmail)) {
+                & git config --global user.email $GitEmail
+                Write-Ok "git user.email = $GitEmail"
+                Add-Result -Step 'git' -Item 'user.email' -Status 'Ok' -Detail $GitEmail
+            }
+            $email = $GitEmail
+        }
+        else {
+            Add-Result -Step 'git' -Item 'user.email' -Status 'Warn' -Detail 'not set: pass -GitEmail or run interactively'
+            Write-Warn 'git user.email is not set (no valid -GitEmail given).'
+        }
     }
 
     $exclude = Join-Path $HOME '.config\git\ignore'
@@ -153,92 +178,102 @@ function Invoke-GitStep {
     $pub    = "$key.pub"
     $known  = Join-Path $sshDir 'known_hosts'
 
-    if ($PSCmdlet.ShouldProcess($sshDir, 'create ~/.ssh and pin the GitHub host key')) {
-        New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
-        if (-not (Test-Path -LiteralPath $known)) { New-Item -ItemType File -Path $known -Force | Out-Null }
-        $hk = Add-GitHubHostKey -KnownHosts $known -SshKeygen $sshKeygen
-        Write-Ok "GitHub host key $hk in known_hosts (pinned, $script:GitHubHostFingerprint)"
-    }
-
-    if (-not (Test-Path -LiteralPath $key)) {
-        if (-not $PSCmdlet.ShouldProcess($key, 'ssh-keygen -t ed25519')) { return }
-
-        Write-Info 'Generating a new ed25519 key. You will be asked for a passphrase - press Enter for none, or choose one.'
-        $comment = "$GitUser@$env:COMPUTERNAME (pwsh bootstrap)"
-
-        if ($Unattended) {
-            # An empty passphrase needs a different spelling per PowerShell: 5.1 and 7.0-7.2 drop a bare '' and
-            # need the literal "" ; 7.3+ (native argument passing = Windows) passes '' through correctly, and
-            # would hand ssh-keygen a two-character passphrase of "" if given '""'.
-            $modernArgs = ($PSVersionTable.PSVersion -ge [version]'7.3') -and ($PSNativeCommandArgumentPassing -ne 'Legacy')
-            $emptyPass  = if ($modernArgs) { '' } else { '""' }
-            & $sshKeygen -q -t ed25519 -C $comment -f $key -N $emptyPass
-        }
-        else { & $sshKeygen -t ed25519 -C $comment -f $key }
-
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pub)) {
-            Write-Bad 'ssh-keygen failed'
-            Add-Result -Step 'git' -Item 'ssh key' -Status 'Failed' -Detail 'ssh-keygen failed'
-            return
-        }
-        Add-Result -Step 'git' -Item 'ssh key' -Status 'Ok' -Detail $key
-    }
-    else {
-        Write-Ok "Using your existing key $key (not regenerated)"
-        Add-Result -Step 'git' -Item 'ssh key' -Status 'Skipped' -Detail 'existing key reused'
-    }
-
-    if (-not (Test-Path -LiteralPath $pub)) {
-        & $sshKeygen -y -f $key | Set-Content -LiteralPath $pub -Encoding ASCII
-    }
-
     if ($WhatIfPreference) {
-        Write-Info 'Dry run: a real run would test the key against GitHub, then (if needed) show it, copy it and open the add-key page.'
-        Add-Result -Step 'git' -Item 'ssh activation' -Status 'Skipped' -Detail 'dry run'
+        Write-Info 'Dry run: a real run would pin the GitHub host key, test SSH, and only if it fails create a key, show it and wait for you to add it to GitHub.'
+        Add-Result -Step 'git' -Item 'ssh' -Status 'Skipped' -Detail 'dry run'
         return
     }
 
-    $login = Test-GitHubSsh -Ssh $ssh -KeyPath $key
+    New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $known)) { New-Item -ItemType File -Path $known -Force | Out-Null }
+    $hk = Add-GitHubHostKey -KnownHosts $known -SshKeygen $sshKeygen
+    Write-Ok "GitHub host key $hk in known_hosts (pinned, $script:GitHubHostFingerprint)"
+
+    # Silent pre-check: does SSH to GitHub already work with whatever is configured?
+    $login = Test-GitHubSsh -Ssh $ssh -Batch
     if ($login) {
-        Write-Ok "SSH to GitHub already works (logged in as $login)"
+        Write-Ok "SSH to GitHub already works (logged in as $login) - no key setup needed"
+        Add-Result -Step 'git' -Item 'ssh' -Status 'Skipped' -Detail "already working as $login"
     }
     else {
-        $pubText = (Get-Content -LiteralPath $pub -Raw).Trim()
+        # ---- key: reuse or create -------------------------------------------
+        if (-not (Test-Path -LiteralPath $key)) {
+            Write-Info 'Generating a new ed25519 key. You will be asked for a passphrase - press Enter for none, or choose one.'
+            $who     = if ($email) { $email } elseif ($name) { $name } else { $env:USERNAME }
+            $comment = "$who@$env:COMPUTERNAME (pwsh bootstrap)"
 
-        Write-Host ''
-        Write-Host '  Add this public key to GitHub to activate SSH:' -ForegroundColor Cyan
-        Write-Host ''
-        Write-Host "  $pubText" -ForegroundColor White
-        Write-Host ''
-        Write-Host '  GitHub > Settings > SSH and GPG keys > New SSH key  (Key type: Authentication Key)' -ForegroundColor Gray
-        Write-Host '  https://github.com/settings/ssh/new' -ForegroundColor Gray
+            if ($Unattended) {
+                # An empty passphrase needs a different spelling per PowerShell: 5.1 and 7.0-7.2 drop a bare '' and
+                # need the literal "" ; 7.3+ (native argument passing = Windows) passes '' through correctly, and
+                # would hand ssh-keygen a two-character passphrase of "" if given '""'.
+                $modernArgs = ($PSVersionTable.PSVersion -ge [version]'7.3') -and ($PSNativeCommandArgumentPassing -ne 'Legacy')
+                $emptyPass  = if ($modernArgs) { '' } else { '""' }
+                & $sshKeygen -q -t ed25519 -C $comment -f $key -N $emptyPass
+            }
+            else { & $sshKeygen -t ed25519 -C $comment -f $key }
 
-        if ($Unattended) {
-            Add-Result -Step 'git' -Item 'ssh activation' -Status 'Warn' -Detail 'public key shown; add it to GitHub then run: install.ps1 -Only Git'
-            return
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $pub)) {
+                Write-Bad 'ssh-keygen failed'
+                Add-Result -Step 'git' -Item 'ssh key' -Status 'Failed' -Detail 'ssh-keygen failed'
+                return
+            }
+            Add-Result -Step 'git' -Item 'ssh key' -Status 'Ok' -Detail $key
+        }
+        else {
+            Write-Ok "Using your existing key $key (not regenerated)"
+            Add-Result -Step 'git' -Item 'ssh key' -Status 'Skipped' -Detail 'existing key reused'
         }
 
-        try { Set-Clipboard -Value $pubText; Write-Ok 'Public key copied to the clipboard' } catch { Write-Dim 'could not use the clipboard - copy the line above' }
-        try { Start-Process 'https://github.com/settings/ssh/new' } catch { Write-Dim 'could not open a browser - open the link above' }
+        if (-not (Test-Path -LiteralPath $pub)) {
+            & $sshKeygen -y -f $key | Set-Content -LiteralPath $pub -Encoding ASCII
+        }
 
-        for ($try = 1; $try -le 3 -and -not $login; $try++) {
-            [void](Read-Host "`nPress Enter after you have added the key to GitHub (attempt $try of 3)")
-            $login = Test-GitHubSsh -Ssh $ssh -KeyPath $key
-            if (-not $login) { Write-Warn 'GitHub did not accept the key yet. Check it was pasted as ONE line, then try again.' }
+        # The key may already be registered with GitHub (e.g. a passphrase blocked the silent check).
+        $login = Test-GitHubSsh -Ssh $ssh -KeyPath $key
+
+        if (-not $login) {
+            $pubText = (Get-Content -LiteralPath $pub -Raw).Trim()
+
+            Write-Host ''
+            Write-Host '  SSH to GitHub is not working yet. Add this PUBLIC key to your GitHub account:' -ForegroundColor Cyan
+            Write-Host ''
+            Write-Host "  $pubText" -ForegroundColor White
+            Write-Host ''
+            Write-Host '  1. Open https://github.com/settings/ssh/new' -ForegroundColor Gray
+            Write-Host '  2. Key type: Authentication Key. Paste the whole line above as ONE line. Save.' -ForegroundColor Gray
+
+            if ($Unattended) {
+                Add-Result -Step 'git' -Item 'ssh activation' -Status 'Warn' -Detail 'public key shown; add it to GitHub then run: install.ps1 -Only Git'
+                return
+            }
+
+            try { Set-Clipboard -Value $pubText; Write-Ok 'Public key copied to the clipboard' } catch { Write-Dim 'could not use the clipboard - copy the line above' }
+            try { Start-Process 'https://github.com/settings/ssh/new' } catch { Write-Dim 'could not open a browser - open the link above' }
+
+            Write-Host ''
+            Write-Host '  *** DO NOT CONTINUE UNTIL THE KEY HAS BEEN ADDED TO GITHUB. ***' -ForegroundColor Yellow
+            Write-Host '  The rest of the install depends on SSH working.' -ForegroundColor Yellow
+
+            while (-not $login) {
+                $a = Read-Host "`nPress Enter once the key is added and saved on GitHub (or type SKIP to continue without SSH)"
+                if ($a -match '^\s*skip\s*$') { break }
+                $login = Test-GitHubSsh -Ssh $ssh -KeyPath $key
+                if (-not $login) { Write-Warn 'GitHub did not accept the key yet. Check it was pasted as ONE line and saved, then press Enter again.' }
+            }
         }
     }
 
     if (-not $login) {
-        Add-Result -Step 'git' -Item 'ssh activation' -Status 'Warn' -Detail 'not verified; add the key then run: install.ps1 -Only Git'
+        Add-Result -Step 'git' -Item 'ssh activation' -Status 'Warn' -Detail 'skipped by you; add the key then run: install.ps1 -Only Git'
         Write-Warn 'SSH not verified - git keeps using HTTPS. Re-run later with: install.ps1 -Only Git'
         return
     }
 
-    if ($userEntered -and $login -ne $GitUser) {
-        Write-Warn "GitHub says you are '$login' but you entered '$GitUser'. Keeping what you entered for user.name."
+    $rewrite = Get-GitGlobal 'url.git@github.com:.insteadOf'
+    if ($rewrite -eq 'https://github.com/') {
+        Write-Ok 'git already rewrites https://github.com/ to SSH'
     }
-
-    if ($PSCmdlet.ShouldProcess('git config --global', 'url.git@github.com:.insteadOf https://github.com/')) {
+    elseif ($PSCmdlet.ShouldProcess('git config --global', 'url.git@github.com:.insteadOf https://github.com/')) {
         & git config --global 'url.git@github.com:.insteadOf' 'https://github.com/'
         Write-Ok 'git now uses SSH for every github.com remote (https://github.com/... is rewritten automatically)'
     }

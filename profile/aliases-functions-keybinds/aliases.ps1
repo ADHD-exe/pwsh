@@ -8,14 +8,7 @@ Set-Alias info Get-Help
 Set-Alias ep Edit-Profile
 Set-Alias omp oh-my-posh
  
-function oc {
-  try {
-    openclaw @args 2>$null
-  }
-  catch {
-    opencode @args
-  }
-}
+function oc { opencode @args }
 Set-Alias oco opencode
 Set-Alias c clear
 Set-Alias cls clear

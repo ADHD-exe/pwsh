@@ -89,11 +89,9 @@
         @{ Tier = 'Apps';  Name = 'NVCleanstall'; Id = 'TechPowerUp.NVCleanstall'; Command = '';     Admin = $true; Risky = $true; Note = 'NVIDIA driver installer' }
     )
 
-    # Global npm packages the profile's aliases (oc / ai / claude) point at.
+    # Global npm packages the profile's aliases (claude) point at.
     # Installed in the Shell tier, only when node/npm is present.
-    # UNVERIFIED: package names are carried over from the old install.ps1.
     NpmGlobals = @(
-        @{ Name = 'openclaw';                  Command = 'openclaw' }
         @{ Name = '@anthropic-ai/claude-code'; Command = 'claude' }
     )
 }

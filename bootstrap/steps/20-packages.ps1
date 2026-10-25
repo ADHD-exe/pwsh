@@ -80,13 +80,19 @@ function Invoke-NpmGlobalStep {
         Write-Info "npm install -g $($pkg.Name) ..."
         $out = & npm install -g $pkg.Name 2>&1
         Write-LogLine 'NPM' ("{0} exit {1}`n{2}" -f $pkg.Name, $LASTEXITCODE, ($out | Out-String))
+        $npmExit = $LASTEXITCODE
         Update-SessionPath
+        # npm's global bin folder is often not on PATH in the current session.
+        $npmPrefix = (& npm prefix -g 2>$null | Select-Object -First 1)
+        if ($npmPrefix -and (Test-Path -LiteralPath $npmPrefix) -and ($env:Path -notlike "*$npmPrefix*")) { $env:Path = "$env:Path;$npmPrefix" }
 
         if (Test-CommandExists $pkg.Command) {
             Write-Ok "$($pkg.Name) installed"
             Add-Result -Step 'npm' -Item $pkg.Name -Status 'Ok' -Detail 'installed'
         }
         else {
+            $why = ($out | Out-String).Trim() -split "`r?`n" | Where-Object { $_ -match 'ERR|error|404|not found' } | Select-Object -First 2
+            if ($npmExit -ne 0) { Write-Warn "npm exited $npmExit for $($pkg.Name): $($why -join ' | ')" }
             Write-Bad "$($pkg.Name) not found after install - try: npm install -g $($pkg.Name)"
             Add-Result -Step 'npm' -Item $pkg.Name -Status 'Failed' -Detail "npm install -g $($pkg.Name)"
         }
