@@ -106,12 +106,12 @@ if (Test-Path -LiteralPath $script:FzfConfFile) {
         # fzf reads the file itself, comments and all. Drop any inherited
         # FZF_DEFAULT_OPTS: fzf applies BOTH sources, and a stale inline
         # string would fight (or break) the options file.
-        Remove-Item Env:\FZF_DEFAULT_OPTS -ErrorAction SilentlyContinue
+        if (Test-Path Env:\FZF_DEFAULT_OPTS) { Remove-Item Env:\FZF_DEFAULT_OPTS -ErrorAction SilentlyContinue }
         $env:FZF_DEFAULT_OPTS_FILE = $script:FzfConfFile
     }
     else {
         # Older fzf: strip comments/blank lines here and pass options inline.
-        Remove-Item Env:\FZF_DEFAULT_OPTS_FILE -ErrorAction SilentlyContinue
+        if (Test-Path Env:\FZF_DEFAULT_OPTS_FILE) { Remove-Item Env:\FZF_DEFAULT_OPTS_FILE -ErrorAction SilentlyContinue }
         $opts = Get-Content -LiteralPath $script:FzfConfFile |
             ForEach-Object { ($_ -replace '(^|\s)#.*$', '').Trim() } |
             Where-Object { $_ }
@@ -132,7 +132,11 @@ if (Test-Path -LiteralPath $script:FzfConfFile) {
 #  3. PSFzf  -- imported with atuin-safe chords
 # =============================================================================
 
-if (-not (Get-Module -ListAvailable -Name PSFzf)) {
+if (-not (Get-Module PSReadLine)) {
+    # PSFzf binds its chords through PSReadLine; without it (redirected/non-console host) importing only produces errors.
+    Write-Verbose 'PSReadLine is not loaded - skipping PSFzf.'
+}
+elseif (-not (Get-Module -ListAvailable -Name PSFzf)) {
     Write-Warning 'PSFzf is not installed. Run: Install-Module PSFzf -Scope CurrentUser'
 }
 else {

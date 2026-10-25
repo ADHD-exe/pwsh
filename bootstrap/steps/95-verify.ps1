@@ -74,7 +74,9 @@ function Invoke-VerifyStep {
         $ms = ($out | Where-Object { $_ -is [string] -and $_ -match '^\d+$' } | Select-Object -Last 1)
 
         # PSReadLine cannot load in a child with redirected I/O; that is a limit of this check, not of the profile.
-        $tagged = @($out | Where-Object { $_ -is [string] -and $_.StartsWith('PROFILEERR::') } | ForEach-Object { $_.Substring(12) } | Where-Object { $_ -notmatch 'PSReadLine' })
+        # Errors that only follow from that (PSFzf cannot import without it) and YouShouldUse's own harmless
+        # Get-Variable probe for YSU_NO_AUTOENABLE are filtered for the same reason.
+        $tagged = @($out | Where-Object { $_ -is [string] -and $_.StartsWith('PROFILEERR::') } | ForEach-Object { $_.Substring(12) } | Where-Object { $_ -notmatch 'PSReadLine|PSFzf\.psm1|YSU_NO_AUTOENABLE' })
         if ($tagged.Count -gt 0) { $errs = $tagged }
         else {
             # Nothing in $Error: fall back to whatever the child wrote to stderr.
