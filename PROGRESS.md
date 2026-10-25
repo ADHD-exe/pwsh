@@ -1,4 +1,19 @@
-# Progress report (checkpoint 8)
+# Progress report (checkpoint 9)
+
+Done in this checkpoint (static edits only; no PowerShell in this sandbox, nothing re-run - please test)
+Diagnosis of the last run's "Profile produced errors" (log install-20261025-140223): the verify child shell has redirected I/O, so PSReadLine cannot load there. The 3 reported errors were all side effects of that or harmless noise, not real profile bugs:
+1. settings/fzf/PSFzf.config.ps1: PSFzf is imported only when PSReadLine is loaded (it needs it for its chords); FZF_DEFAULT_OPTS / FZF_DEFAULT_OPTS_FILE are removed only if they exist (Remove-Item -ErrorAction SilentlyContinue still logs to $Error).
+2. bootstrap/steps/95-verify.ps1: the child-shell error filter now also ignores PSFzf.psm1 import errors and YouShouldUse's own Get-Variable probe for YSU_NO_AUTOENABLE (third-party module code, harmless).
+Real interactive shells are unaffected: PSReadLine is already loaded there, so PSFzf still imports.
+
+Still needs you
+- Commit + push, then re-run the installer; expect "Profile loads cleanly in a fresh pwsh".
+- If a profile error still shows, send the new "Profile produced errors" lines.
+
+---
+(Previous report follows)
+
+## Checkpoint 8
 
 Done (static edits only; no PowerShell in this sandbox, nothing re-run - please test)
 1. ROOT CAUSE of "Could not fast-forward", missing fonts, missing settings\git\ignore and the failing new terminal:
