@@ -26,9 +26,9 @@
         {
           "type": "spotify",
           "style": "plain",
-          "foreground": "#33ff33",
+          "foreground": "#36f984",
           "background": "#001c00",
-          "template": " {{ .Icon }} {{ if ne .Status \"stopped\" }}{{ .Track }} - {{ .Artist }} - {{ .Status }}{{ end }} ",
+          "template": " \uf1bc  {{ if ne .Status \"stopped\" }}{{ .Track }} - {{ .Artist }} {{ end }} ",
           "powerline_symbol": "\ue0c8",
           "leading_diamond": "\ue0ca",
           "trailing_diamond": "\ue0c8"
@@ -66,8 +66,8 @@
         {
           "type": "os",
           "style": "plain",
-          "foreground": "#33ff33",
-          "background": "#001c00",
+          "foreground": "#ac2ff9",
+          "background": "#120020",
           "template": " {{ if .WSL }}\ue712 on {{ end }}{{ .Icon }} ",
           "powerline_symbol": "",
           "leading_diamond": "",
@@ -88,14 +88,14 @@
             "opensuse": "\uf314",
             "raspbian": "\uf315",
             "ubuntu": "\uf31c",
-            "windows": "\ue70f"
+            "windows": "\udb82\ude21"
           }
         },
         {
           "type": "shell",
           "style": "plain",
-          "foreground": "#ffff80",
-          "background": "#261300",
+          "foreground": "#e1f945",
+          "background": "#160b00",
           "template": " \ue795 {{ .Name }} ",
           "powerline_symbol": "\ue0b0",
           "leading_diamond": "",
@@ -134,8 +134,8 @@
         {
           "type": "path",
           "style": "plain",
-          "foreground": "#ce39f9",
-          "background": "#120020",
+          "foreground": "#f902d8",
+          "background": "#260121",
           "template": " \uf07c {{ .Path }} ",
           "powerline_symbol": "\ue0b0",
           "leading_diamond": "",
@@ -174,8 +174,8 @@
         {
           "type": "sysinfo",
           "style": "plain",
-          "foreground": "#ff42a0",
-          "background": "#25011d",
+          "foreground": "#9cf904",
+          "background": "#001602",
           "template": " \udb81\ude1a {{ (div ((sub .PhysicalTotalMemory .PhysicalAvailableMemory)|float64) 1073741824.0) }}/{{ (div .PhysicalTotalMemory 1073741824.0) }}GB",
           "powerline_symbol": "\ue0b0",
           "leading_diamond": "\ue0ca",
@@ -184,8 +184,8 @@
         {
           "type": "sysinfo",
           "style": "plain",
-          "foreground": "#ffff80",
-          "background": "#261300",
+          "foreground": "#318bf9",
+          "background": "#000a16",
           "template": " \uf4bc {{ round .PhysicalPercentUsed .Precision }}% ",
           "powerline_symbol": "\ue0b0",
           "leading_diamond": "\ue0ca",
@@ -220,8 +220,8 @@
         {
           "type": "time",
           "style": "plain",
-          "foreground": "#ce39f9",
-          "background": "#120020",
+          "foreground": "#f94109",
+          "background": "#190600",
           "template": " \uf017 {{ .CurrentDate | date .Format }} ",
           "powerline_symbol": "\ue0b0",
           "leading_diamond": "\ue0ca",
