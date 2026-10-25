@@ -28,6 +28,7 @@
         '%ProgramFiles%\AutoHotkey'
         '%ProgramFiles%\Autoruns'
         '%ProgramFiles%\Everything'
+        '%ProgramFiles%\Firefox Developer Edition'
         '%ProgramFiles%\EverythingToolbar'
         '%ProgramFiles%\Git\cmd'
         '%ProgramFiles%\Go\bin'

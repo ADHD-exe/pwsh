@@ -194,6 +194,7 @@ function Copy-ConfigFile {
         [hashtable]$Tokens,
         [string]$SkipIfRunning,
         [string]$Step = 'configs',
+        [scriptblock]$Transform,     # optional: receives the file text, returns the text to deploy (used to drop theme lines)
         [switch]$Force
     )
 
@@ -214,6 +215,8 @@ function Copy-ConfigFile {
     if ($Tokens) {
         foreach ($key in $Tokens.Keys) { $content = $content.Replace($key, [string]$Tokens[$key]) }
     }
+
+    if ($Transform) { $content = [string](& $Transform $content) }
 
     $existing = $null
     if (Test-Path -LiteralPath $Target) { $existing = Get-Content -LiteralPath $Target -Raw }
@@ -338,4 +341,74 @@ function Test-ConfigWouldChange {
     $have = Get-Content -LiteralPath $Target -Raw
 
     return (($have -replace "`r`n", "`n").TrimEnd() -ne ($want -replace "`r`n", "`n").TrimEnd())
+}
+
+
+# --------------------------------------------------------------------------
+# Install-time choices (asked once, remembered in %LOCALAPPDATA%\RabbitBootstrap)
+# --------------------------------------------------------------------------
+function Read-YesNo {
+    <# Y/n question. Returns the default without asking when -Unattended is given or there is no console. #>
+    param([Parameter(Mandatory)][string]$Prompt, [bool]$Default = $true, [switch]$Unattended)
+
+    if ($Unattended -or -not [Environment]::UserInteractive) { return $Default }
+
+    $hint = if ($Default) { '[Y/n]' } else { '[y/N]' }
+    while ($true) {
+        $a = (Read-Host "$Prompt $hint").Trim()
+        if ($a -eq '') { return $Default }
+        if ($a -match '^(y|yes)$') { return $true }
+        if ($a -match '^(n|no)$')  { return $false }
+        Write-Host '     Please answer y or n.' -ForegroundColor DarkYellow
+    }
+}
+
+function Get-ChoiceFile { param([string]$Name) return (Join-Path (Join-Path $env:LOCALAPPDATA 'RabbitBootstrap') "choice-$Name.txt") }
+
+function Get-StoredChoice {
+    <# $true / $false from an earlier run, or $null when that question was never answered. #>
+    param([Parameter(Mandatory)][string]$Name)
+    $f = Get-ChoiceFile $Name
+    if (-not (Test-Path -LiteralPath $f)) { return $null }
+    return ((Get-Content -LiteralPath $f -Raw).Trim() -eq 'yes')
+}
+
+function Save-StoredChoice {
+    param([Parameter(Mandatory)][string]$Name, [Parameter(Mandatory)][bool]$Value)
+    $f = Get-ChoiceFile $Name
+    $null = New-Item -ItemType Directory -Path (Split-Path $f) -Force
+    Set-Content -LiteralPath $f -Value $(if ($Value) { 'yes' } else { 'no' }) -Encoding ASCII
+}
+
+function Resolve-Choice {
+    <#
+        One yes/no install option.
+          -Setting Yes|No   given on the command line -> used as is
+          -Setting Ask      -> remembered answer when the run has no reason to ask (-Unattended / -WhatIf / -NoAsk),
+                               otherwise the question is asked, with the remembered answer as the default
+        The answer is stored (never under -WhatIf) so later partial runs, the verification window and the profile agree.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Prompt,
+        [string]$Setting = 'Ask',
+        [bool]$DefaultAnswer = $true,
+        [switch]$Unattended,
+        [switch]$NoAsk
+    )
+
+    $stored = Get-StoredChoice $Name
+    if ($null -eq $stored) { $stored = $DefaultAnswer }
+
+    switch ($Setting) {
+        'Yes' { $value = $true }
+        'No'  { $value = $false }
+        default {
+            if ($NoAsk -or $WhatIfPreference) { $value = $stored }
+            else { $value = Read-YesNo -Prompt $Prompt -Default $stored -Unattended:$Unattended }
+        }
+    }
+
+    if (-not $WhatIfPreference) { Save-StoredChoice -Name $Name -Value $value }
+    return $value
 }

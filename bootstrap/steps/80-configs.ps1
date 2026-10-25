@@ -21,13 +21,20 @@ function Invoke-ConfigStep {
     $s = Join-Path $RepoRoot 'settings'
     $h = $HOME
 
+    $themes = ($script:InstallThemes -ne $false)   # asked once at the start of the install; no = no theme anywhere
+    if (-not $themes) { Write-Dim 'Themes declined: skipping the Atuin, Yazi, fzf and Notepad++ colour themes.' }
+
     # ---- Atuin --------------------------------------------------------------
     if (Test-AppInstalled -Command 'atuin') {
-        Copy-ConfigFile -Source (Join-Path $s 'atuin\config.toml') -Target (Join-Path $h '.config\atuin\config.toml') -Force:$Force
+        # config.toml selects the 'rabbit' theme by name; without themes that line is dropped.
+        $atuinTransform = if ($themes) { $null } else { { param($t) [regex]::Replace($t, '(?m)^name\s*=\s*"rabbit"\s*\r?\n', '') } }
+        Copy-ConfigFile -Source (Join-Path $s 'atuin\config.toml') -Target (Join-Path $h '.config\atuin\config.toml') -Transform $atuinTransform -Force:$Force
 
-        # Colour theme(s) - config.toml selects 'rabbit' (the oh-my-rabbit palette) by name.
-        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'atuin\themes') -Filter *.toml -File -ErrorAction SilentlyContinue) {
-            Copy-ConfigFile -Source $f.FullName -Target (Join-Path $h ".config\atuin\themes\$($f.Name)") -Force:$Force
+        # Colour theme(s) - the oh-my-rabbit palette.
+        if ($themes) {
+            foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'atuin\themes') -Filter *.toml -File -ErrorAction SilentlyContinue) {
+                Copy-ConfigFile -Source $f.FullName -Target (Join-Path $h ".config\atuin\themes\$($f.Name)") -Force:$Force
+            }
         }
     }
     else { Add-Result -Step 'configs' -Item 'atuin' -Status 'Skipped' -Detail 'atuin not installed' }
@@ -35,11 +42,14 @@ function Invoke-ConfigStep {
     # ---- fzf / PSFzf: every file except the old self-installer and README ---
     $fzfTarget = Join-Path $h '.config\fzf'
     foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'fzf') -File | Where-Object { $_.Name -notin 'Install-FzfConfig.ps1', 'README.md' }) {
-        Copy-ConfigFile -Source $f.FullName -Target (Join-Path $fzfTarget $f.Name) -Force:$Force
+        # fzf.conf carries the palette as --color= lines; without themes fzf keeps its default colours.
+        $fzfTransform = if ($themes -or $f.Name -ne 'fzf.conf') { $null } else { { param($t) [regex]::Replace($t, '(?m)^--color=.*\r?\n?', '') } }
+        Copy-ConfigFile -Source $f.FullName -Target (Join-Path $fzfTarget $f.Name) -Transform $fzfTransform -Force:$Force
     }
 
     # ---- yazi: oh-my-rabbit colour theme (Windows reads %APPDATA%\yazi\config) ---
-    if (Test-AppInstalled -Command 'yazi') {
+    if (-not $themes) { Add-Result -Step 'configs' -Item 'yazi theme' -Status 'Skipped' -Detail 'themes declined' }
+    elseif (Test-AppInstalled -Command 'yazi') {
         Copy-ConfigFile -Source (Join-Path $s 'yazi\theme.toml') -Target (Join-Path $env:APPDATA 'yazi\config\theme.toml') -Force:$Force
     }
     else { Add-Result -Step 'configs' -Item 'yazi' -Status 'Skipped' -Detail 'yazi not installed' }
@@ -68,10 +78,11 @@ function Invoke-ConfigStep {
         # restores unsaved tabs), replace the files (originals are backed up), then reopen it.
         $nppTokens  = @{ '__USERPROFILE__' = $env:USERPROFILE }
         $nppChanges = @(Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File |
+            Where-Object { $themes -or $_.Name -ne 'stylers.xml' } |
             Where-Object { Test-ConfigWouldChange -Source $_.FullName -Target (Join-Path $env:APPDATA "Notepad++\$($_.Name)") -Tokens $nppTokens })
         $nppApp = if ($WhatIfPreference -or $nppChanges.Count -eq 0) { $null } else { Stop-AppForConfig -ProcessName 'notepad++' }
         try {
-            foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File) {
+            foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File | Where-Object { $themes -or $_.Name -ne 'stylers.xml' }) {
                 Copy-ConfigFile -Source $f.FullName -Target (Join-Path $env:APPDATA "Notepad++\$($f.Name)") `
                     -Tokens @{ '__USERPROFILE__' = $env:USERPROFILE } -SkipIfRunning 'notepad++' -Force:$Force
             }
@@ -92,18 +103,21 @@ function Invoke-ConfigStep {
     }
     else { Add-Result -Step 'configs' -Item 'everything' -Status 'Skipped' -Detail 'Everything not installed (Tools tier)' }
 
-    # ---- AutoHotkey v2: deploy both scripts, autostart ONLY keybinds.ahk -----
+    # ---- AutoHotkey v2: the launcher keybinds script (only when the user said yes) -----
     $ahkExe = @('%ProgramFiles%\AutoHotkey\v2\AutoHotkey64.exe', '%ProgramFiles%\AutoHotkey\v2\AutoHotkey32.exe', '%ProgramFiles%\AutoHotkey\AutoHotkey.exe') |
         ForEach-Object { Expand-Vars $_ } | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 
-    if ($ahkExe) {
+    if ($script:InstallKeybinds -eq $false) {
+        Add-Result -Step 'configs' -Item 'autohotkey' -Status 'Skipped' -Detail 'keybinds declined at the prompt'
+        Write-Dim 'Keybinds declined: AutoHotkey script not deployed.'
+    }
+    elseif ($ahkExe) {
         $ahkDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'AutoHotkey'
 
-        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'autohotkey') -Filter *.ahk -File) {
+        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'autohotkey') -Filter *.ahk -File) {   # keybinds.ahk
             Copy-ConfigFile -Source $f.FullName -Target (Join-Path $ahkDir $f.Name) -Force:$Force
         }
 
-        # bandlab_ahk.ahk remaps every letter key while it runs, so it is deployed but never autostarted.
         $lnk = Join-Path ([Environment]::GetFolderPath('Startup')) 'keybinds.ahk.lnk'
 
         if (-not (Test-Path -LiteralPath $lnk)) {

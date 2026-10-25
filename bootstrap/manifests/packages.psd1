@@ -4,7 +4,7 @@
 # Tiers (selected with  install.ps1 -Tier Core,Shell,Tools ; the DEFAULT is Core,Shell,Tools):
 #   Core  - the installer and profile cannot work without these
 #   Shell - the command-line stack the profile integrates with
-#   Tools - editors / system utilities that the repo's settings\ configure
+#   Tools - editors / system utilities / Firefox Developer Edition that the repo's settings\ configure
 #   Apps  - everything else from the old draft list; OPT-IN (-Tier Apps)
 #
 # Fields
@@ -53,16 +53,16 @@
         @{ Tier = 'Tools'; Name = 'EverythingToolbar'; Id = 'srwi.EverythingToolbar'; Command = '';    Paths = @('%ProgramFiles%\EverythingToolbar'); Admin = $true; Note = 'draft listed .Launcher and .Deskband; verify which id exists' }
         @{ Tier = 'Tools'; Name = 'CMake';       Id = 'Kitware.CMake';           Command = 'cmake';  Paths = @('%ProgramFiles%\CMake\bin\cmake.exe') }
         @{ Tier = 'Tools'; Name = 'Python 3.14'; Id = 'Python.Python.3.14';      Command = 'python'; Paths = @('%LOCALAPPDATA%\Programs\Python\Python314\python.exe', '%LOCALAPPDATA%\Programs\Python\Launcher\py.exe') }
+        # Command stays empty on purpose: a regular Firefox on PATH must not count as "Developer Edition is installed".
+        @{ Tier = 'Tools'; Name = 'Firefox Developer Edition'; Id = 'Mozilla.Firefox.DeveloperEdition'; Command = ''; Paths = @('%ProgramFiles%\Firefox Developer Edition\firefox.exe', '%ProgramFiles(x86)%\Firefox Developer Edition\firefox.exe'); Admin = $true; Note = 'on the system PATH; the profile adds a `firefox` command; Win+B in keybinds.ahk' }
         @{ Tier = 'Tools'; Name = 'PeaZip';      Id = 'Giorgiotani.Peazip';      Command = '';       Paths = @('%ProgramFiles%\PeaZip\peazip.exe') }
         @{ Tier = 'Tools'; Name = 'Autoruns';    Id = 'Microsoft.Sysinternals.Autoruns'; Command = 'autoruns'; Paths = @('%ProgramFiles%\Autoruns') }
 
         # ------------------------------ Apps (opt-in) -----------------------
         @{ Tier = 'Apps';  Name = 'Starship';    Id = 'Starship.Starship';       Command = 'starship'; Note = 'profile uses Oh My Posh; Starship is only here because the draft listed it' }
         @{ Tier = 'Apps';  Name = 'Tailscale';   Id = 'Tailscale.Tailscale';     Command = 'tailscale'; Paths = @('%ProgramFiles%\Tailscale\tailscale.exe'); Admin = $true }
-        @{ Tier = 'Apps';  Name = 'Firefox Developer Edition'; Id = 'Mozilla.Firefox.DeveloperEdition'; Command = ''; Paths = @('%ProgramFiles%\Firefox Developer Edition\firefox.exe'); Note = 'launched by Win+B in keybinds.ahk' }
-        @{ Tier = 'Apps';  Name = 'Spotify';     Id = 'Spotify.Spotify';         Command = '';       Paths = @('%APPDATA%\Spotify\Spotify.exe'); Note = 'launched by Win+S in keybinds.ahk' }
-        @{ Tier = 'Apps';  Name = 'Equibop';     Id = 'Equicord.Equibop';        Command = '';       Paths = @('%LOCALAPPDATA%\Equibop\equibop.exe'); Note = 'launched by Win+D in keybinds.ahk' }
-        @{ Tier = 'Apps';  Name = 'eM Client';   Id = 'eMClient.eMClient';       Command = '';       Paths = @('%ProgramFiles(x86)%\eM Client\MailClient.exe'); Note = 'launched by Win+E in keybinds.ahk' }
+        @{ Tier = 'Apps';  Name = 'Spotify';     Id = 'Spotify.Spotify';         Command = '';       Paths = @('%APPDATA%\Spotify\Spotify.exe') }
+        @{ Tier = 'Apps';  Name = 'Equibop';     Id = 'Equicord.Equibop';        Command = '';       Paths = @('%LOCALAPPDATA%\Equibop\equibop.exe') }
         @{ Tier = 'Apps';  Name = 'Outlook for Windows'; Id = '9NRX63209R7B';    Command = '';       Source = 'msstore'; Appx = 'Microsoft.OutlookForWindows' }
         @{ Tier = 'Apps';  Name = 'Paint.NET';   Id = 'dotPDN.PaintDotNet';      Command = '';       Paths = @('%ProgramFiles%\paint.net\paintdotnet.exe') }
         @{ Tier = 'Apps';  Name = 'GIMP';        Id = 'GIMP.GIMP';               Command = '' }

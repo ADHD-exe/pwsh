@@ -3,12 +3,18 @@
 # =============================================================================
 
 function Get-SelectedPackages {
-    param([string[]]$Tier, [switch]$IncludeRisky, [switch]$NoAdmin)
+    param([string[]]$Tier, [switch]$IncludeRisky, [switch]$NoAdmin, [string[]]$ExcludeId)
 
     $all = (Import-PowerShellDataFile -LiteralPath (Join-Path $script:ManifestDir 'packages.psd1')).Packages
 
     foreach ($p in $all) {
         if ($Tier -notcontains $p.Tier) { continue }
+
+        if ($ExcludeId -contains $p.Id) {
+            Add-Result -Step 'packages' -Item $p.Name -Status 'Skipped' -Detail 'not wanted (declined at the prompt)'
+            Write-Dim "$($p.Name): skipped (declined)"
+            continue
+        }
 
         if ($p.Risky -and -not $IncludeRisky) {
             Add-Result -Step 'packages' -Item $p.Name -Status 'Skipped' -Detail 'risky package - pass -IncludeRisky to install'
@@ -28,9 +34,9 @@ function Get-SelectedPackages {
 
 function Invoke-PackageStep {
     [CmdletBinding(SupportsShouldProcess)]
-    param([string[]]$Tier, [switch]$IncludeRisky, [switch]$NoAdmin, [switch]$VerifyOnly)
+    param([string[]]$Tier, [switch]$IncludeRisky, [switch]$NoAdmin, [switch]$VerifyOnly, [string[]]$ExcludeId)
 
-    $packages = @(Get-SelectedPackages -Tier $Tier -IncludeRisky:$IncludeRisky -NoAdmin:$NoAdmin)
+    $packages = @(Get-SelectedPackages -Tier $Tier -IncludeRisky:$IncludeRisky -NoAdmin:$NoAdmin -ExcludeId $ExcludeId)
     Write-Info ("{0} package(s) selected from tier(s): {1}" -f $packages.Count, ($Tier -join ', '))
 
     $uac = @($packages | Where-Object { $_.Admin -and -not (Test-IsAdmin) })

@@ -16,6 +16,16 @@ function Invoke-TerminalStep {
 
     $template = ConvertTo-PlainJsonObject (Get-Content -LiteralPath $templatePath -Raw)
 
+    # Themes declined: leave out the colour schemes and every colorScheme selection (the user's own are untouched).
+    if ($script:InstallThemes -eq $false) {
+        $template.PSObject.Properties.Remove('schemes')
+        if ($template.profiles) {
+            if ($template.profiles.defaults) { $template.profiles.defaults.PSObject.Properties.Remove('colorScheme') }
+            foreach ($pr in @($template.profiles.list)) { if ($pr) { $pr.PSObject.Properties.Remove('colorScheme') } }
+        }
+        Write-Dim 'Themes declined: Windows Terminal colour schemes not merged.'
+    }
+
     $wtInstalled = (Test-CommandExists 'wt') -or [bool](Get-AppxPackage -Name 'Microsoft.WindowsTerminal*' -ErrorAction SilentlyContinue)
     $targets = @(Get-WindowsTerminalTargets | Where-Object { (Test-Path -LiteralPath $_.Directory) -or ($_.CanCreate -and $wtInstalled) })
 

@@ -3,7 +3,7 @@
 Turns a fresh Windows install into a complete working shell: PowerShell 7, Windows Terminal,
 the `oh-my-rabbit` Oh My Posh theme, Nerd Fonts, a modular PowerShell profile, a modern
 command-line toolset (Atuin, zoxide, fzf, fd, bat, eza, Yazi, ripgrep, Neovim, OpenCode),
-GitHub SSH, and — optionally — Notepad++, AutoHotkey and Everything with their configs.
+GitHub SSH, and — optionally — Notepad++, Firefox Developer Edition, AutoHotkey and Everything with their configs.
 
 Re-running it is safe: it repairs what is missing, updates what changed, and leaves
 everything else alone. Anything it replaces is backed up first.
@@ -98,10 +98,11 @@ Read this before your first run.
   To install only the minimum, use `-Tier Core,Shell`.
 - **Open apps keep the old PATH and fonts.** Restart apps that were already running (for example
   Notepad++) to see new fonts, and open a new terminal to pick up PATH changes.
-- **Some shortcuts and folders are personal.** The navigation helpers `vault` (`D:\`) and `repo`
-  (`C:\Repositories`), the AutoHotkey launchers (Firefox Developer Edition, Spotify, Equibop,
-  eM Client) and the Windows Terminal colour schemes reflect the author's setup. Edit them in
-  `profile\` and `settings\` if they do not suit you.
+- **Two optional extras are asked once, near the start.** (1) *Themes*: the `oh-my-rabbit` prompt theme, the
+  Windows Terminal colour scheme, and the matching Atuin, Yazi, fzf and Notepad++ colours are installed **all
+  together or not at all** - answer no and every theme is skipped. (2) *Keybinds*: whether to install
+  AutoHotkey and the program-launcher script. Answers are remembered; `-Themes Yes|No` and `-Keybinds Yes|No`
+  answer in advance, and `-Unattended` reuses the remembered answers (yes the first time).
 - **There is no uninstaller.** Packages can be removed with `winget uninstall`, modules with
   `Uninstall-Module`, and backups are kept so you can restore replaced files by hand.
 - **The `claude` command** (Claude Code) is installed from npm, and `opencode` from winget. They are
@@ -168,7 +169,8 @@ A package that is already installed (command found on PATH or its usual install 
 | Package | winget id | Command | Notes |
 |---|---|---|---|
 | Notepad++ | `Notepad++.Notepad++` | `notepad++` | Config deployed from `settings\notepad++` |
-| AutoHotkey v2 | `AutoHotkey.AutoHotkey` | — | Runs the bundled key-binding scripts. Admin installer |
+| AutoHotkey v2 | `AutoHotkey.AutoHotkey` | — | Runs the launcher keybinds script. Only installed if you say yes to the keybinds prompt. Admin installer |
+| Firefox Developer Edition | `Mozilla.Firefox.DeveloperEdition` | `firefox` | Added to the system PATH; the profile defines `firefox` to launch it. Checked first, so an existing install is kept. Admin installer |
 | Everything | `voidtools.Everything` | — | Instant file search; config deployed. Admin installer |
 | Everything CLI | `voidtools.Everything.Cli` | `es` | Used by PSEverything and the profile |
 | EverythingToolbar | `srwi.EverythingToolbar` | — | Taskbar search. Admin installer |
@@ -185,10 +187,8 @@ Personal desktop apps. Nothing here is needed by the shell.
 |---|---|
 | Starship | `Starship.Starship` (not used by the profile, which uses Oh My Posh) |
 | Tailscale (admin) | `Tailscale.Tailscale` |
-| Firefox Developer Edition | `Mozilla.Firefox.DeveloperEdition` |
 | Spotify | `Spotify.Spotify` |
 | Equibop | `Equicord.Equibop` |
-| eM Client | `eMClient.eMClient` |
 | Outlook for Windows | Microsoft Store `9NRX63209R7B` |
 | Paint.NET | `dotPDN.PaintDotNet` |
 | GIMP | `GIMP.GIMP` |
@@ -279,6 +279,7 @@ The installer does not add folders blindly. For each entry it skips it if the fo
 | `%ProgramFiles%\Autoruns` | Autoruns (Tools) |
 | `%ProgramFiles%\Everything` | Everything (Tools) |
 | `%ProgramFiles%\EverythingToolbar` | EverythingToolbar (Tools) |
+| `%ProgramFiles%\Firefox Developer Edition` | Firefox Developer Edition (Tools) |
 | `%ProgramFiles%\Git\cmd` | Git (Core) |
 | `%ProgramFiles%\Go\bin` | Go (not installed by this repo; added only if present) |
 | `%ProgramFiles%\paint.net` | Paint.NET (Apps) |
@@ -319,7 +320,7 @@ All copied from `settings\`. If a target differs it is backed up as `NAME.bak-<t
 | OpenCode | `settings\opencode\opencode.jsonc` | `~\.config\opencode\` |
 | Notepad++ (if installed) | `settings\notepad++\*.xml` | `%APPDATA%\Notepad++\` |
 | Everything (if installed) | `settings\everything\Everything.ini` | `%APPDATA%\Everything\` |
-| AutoHotkey scripts (if installed) | `settings\autohotkey\*.ahk` | `Documents\AutoHotkey\` |
+| AutoHotkey launcher script (if you chose it) | `settings\autohotkey\keybinds.ahk` | `Documents\AutoHotkey\` |
 | Oh My Posh theme | **not copied** — the profile loads `settings\oh-my-rabbit.omp.json` straight from the repo | — |
 
 Notepad++ and Everything rewrite their config when they exit, so the installer closes them **gracefully**
@@ -363,9 +364,11 @@ Open a new terminal. The repo profile (`profile\`) loads from `~\.pwsh`; update 
 - Machine-local additions go in `Documents\PowerShell\Microsoft.PowerShell_profile.local.ps1` so `git pull` never overwrites them.
 - A **toast notification and terminal bell** fire when a command that ran 8 seconds or longer finishes.
 
-**AutoHotkey shortcuts** (Tools tier; `settings\autohotkey\keybinds.ahk`): `Win+Enter` PowerShell 7, `Win+B` Firefox
-Developer Edition, `Win+N` Notepad++, `Win+S` Spotify, `Win+D` Equibop, `Win+F` Explorer, `Win+M` Microsoft Store,
-`Win+E` eM Client, `Win+Q` close window, `Win+PgUp/PgDn` maximise/minimise, plus Mac-style `Win+C/V/X/Z` copy/paste/cut/undo.
+**AutoHotkey shortcuts** (only if you said yes to the keybinds prompt; `settings\autohotkey\keybinds.ahk`):
+`Win+Enter` PowerShell 7, `Win+B` Firefox Developer Edition, `Win+N` Notepad++, `Win+F` Explorer, `Win+M` Microsoft Store,
+`Win+Q` close window, `Win+PgUp/PgDn` maximise/minimise, plus Mac-style `Win+C/V/X/Z` copy/paste/cut/undo.
+A launcher key is only created when its program exists on the PC (Windows' own programs, or the ones this installer
+installs), so no key ever points at something missing. Reload the script after installing a program later.
 
 ---
 
@@ -376,6 +379,8 @@ Developer Edition, `Win+N` Notepad++, `Win+S` Spotify, `Win+D` Equibop, `Win+F` 
 | `-Tier Core,Shell,Tools,Apps` | Which package tiers to install (default `Core,Shell,Tools`) |
 | `-Only <steps>` | Run only the named steps |
 | `-PathScope Machine\|User` | System PATH (default, one UAC prompt) or your user PATH |
+| `-Themes Ask\|Yes\|No` | Install every colour theme together, or none (default: ask once) |
+| `-Keybinds Ask\|Yes\|No` | Install AutoHotkey and the launcher keybinds script (default: ask once) |
 | `-GitUser`, `-GitEmail` | Git identity to set if missing |
 | `-InstallDir` | Where the repo lives (default `~\.pwsh`) |
 | `-RepoUrl`, `-Branch` | Use a fork or another branch |
