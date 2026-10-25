@@ -70,17 +70,26 @@ function Invoke-VerifyStep {
             Remove-Item -LiteralPath Env:\PWSH_VERIFY_PROFILE -ErrorAction SilentlyContinue
             Remove-Item -LiteralPath Env:\RABBIT_PROFILE_FORCE -ErrorAction SilentlyContinue
         }
-        Write-LogLine 'PROFILE' (($out | Out-String).Trim())
+        # The child prints PROFILEERR:: lines from $Error, then the elapsed ms. Many modules emit the same error
+        # thousands of times (syntax-highlighting), so the log gets each distinct line once.
+        Write-LogLine 'PROFILE' ((@($out | ForEach-Object { "$_" } | Select-Object -Unique) -join "`n").Trim())
         $ms = ($out | Where-Object { $_ -is [string] -and $_ -match '^\d+$' } | Select-Object -Last 1)
 
         # PSReadLine cannot load in a child with redirected I/O; that is a limit of this check, not of the profile.
-        # Errors that only follow from that (PSFzf cannot import without it) and YouShouldUse's own harmless
-        # Get-Variable probe for YSU_NO_AUTOENABLE are filtered for the same reason.
-        $tagged = @($out | Where-Object { $_ -is [string] -and $_.StartsWith('PROFILEERR::') } | ForEach-Object { $_.Substring(12) } | Where-Object { $_ -notmatch 'PSReadLine|PSFzf\.psm1|YSU_NO_AUTOENABLE' })
-        if ($tagged.Count -gt 0) { $errs = $tagged }
+        # Errors that only follow from that (PSFzf, Atuin, PSCompletions, syntax-highlighting, oh-my-posh init all
+        # need it) and YouShouldUse's harmless Get-Variable probe for YSU_NO_AUTOENABLE are filtered for that reason.
+        $ignore = 'PSReadLine|PSFzf\.psm1|YSU_NO_AUTOENABLE'
+        $tagged = @($out | Where-Object { $_ -is [string] -and $_.StartsWith('PROFILEERR::') } | ForEach-Object { $_.Substring(12) } | Where-Object { $_ -notmatch $ignore } | Select-Object -Unique)
+        if ($ms) {
+            # The child finished and dumped $Error, so that dump is the complete list. Raw stderr is NOT consulted:
+            # PowerShell renders one error over several lines ("Line |", "~~~~"), which no filter can match.
+            $errs = $tagged
+        }
+        elseif ($tagged.Count -gt 0) { $errs = $tagged }
         else {
-            # Nothing in $Error: fall back to whatever the child wrote to stderr.
-            $errs = @($out | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] -and $_.ToString() -notmatch 'PSReadLine' } | ForEach-Object { $_.ToString() })
+            # The child never reported its timing (crashed or hung): fall back to its raw stderr.
+            $errs = @($out | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] -and $_.ToString() -notmatch $ignore } | ForEach-Object { $_.ToString() })
+            if ($errs.Count -eq 0) { $errs = @('the child shell did not finish loading the profile') }
         }
 
         if ($errs.Count -eq 0 -and $ms) {
