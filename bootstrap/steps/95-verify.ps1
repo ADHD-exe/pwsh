@@ -56,7 +56,11 @@ function Invoke-VerifyStep {
     elseif ($pwsh) {
         # `pwsh -Command` does not fill $args from trailing arguments (they are appended to the command text),
         # and a path with spaces would break there anyway - so the stub path travels in an environment variable.
-        $cmd = '$sw=[Diagnostics.Stopwatch]::StartNew(); . $env:PWSH_VERIFY_PROFILE; $sw.Stop(); [string][int]$sw.ElapsedMilliseconds'
+        # $Error is dumped after the profile runs, so a failure names its real message, file and line
+        # instead of just the call site in the stub.
+        $cmd = '$ErrorActionPreference = "Continue"; $Error.Clear(); $sw=[Diagnostics.Stopwatch]::StartNew(); . $env:PWSH_VERIFY_PROFILE; $sw.Stop(); ' +
+               'foreach ($e in @($Error)) { "PROFILEERR::" + $e.Exception.Message + " @ " + $e.InvocationInfo.ScriptName + ":" + $e.InvocationInfo.ScriptLineNumber + " [" + $e.FullyQualifiedErrorId + "]" }; ' +
+               '[string][int]$sw.ElapsedMilliseconds'
         $env:PWSH_VERIFY_PROFILE = $stub
         # The profile skips prompts, key bindings and tool hooks whenever pwsh was started with -Command/-File,
         # so without the override this check would only exercise the first few lines of it.
@@ -66,10 +70,16 @@ function Invoke-VerifyStep {
             Remove-Item -LiteralPath Env:\PWSH_VERIFY_PROFILE -ErrorAction SilentlyContinue
             Remove-Item -LiteralPath Env:\RABBIT_PROFILE_FORCE -ErrorAction SilentlyContinue
         }
-        $text = ($out | Out-String).Trim()
-        $ms   = ($out | Where-Object { $_ -match '^\d+$' } | Select-Object -Last 1)
+        Write-LogLine 'PROFILE' (($out | Out-String).Trim())
+        $ms = ($out | Where-Object { $_ -is [string] -and $_ -match '^\d+$' } | Select-Object -Last 1)
+
         # PSReadLine cannot load in a child with redirected I/O; that is a limit of this check, not of the profile.
-        $errs = @($out | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] -and $_.ToString() -notmatch 'PSReadLine' })
+        $tagged = @($out | Where-Object { $_ -is [string] -and $_.StartsWith('PROFILEERR::') } | ForEach-Object { $_.Substring(12) } | Where-Object { $_ -notmatch 'PSReadLine' })
+        if ($tagged.Count -gt 0) { $errs = $tagged }
+        else {
+            # Nothing in $Error: fall back to whatever the child wrote to stderr.
+            $errs = @($out | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] -and $_.ToString() -notmatch 'PSReadLine' } | ForEach-Object { $_.ToString() })
+        }
 
         if ($errs.Count -eq 0 -and $ms) {
             Write-Ok "Profile loads cleanly in a fresh pwsh ($ms ms)"
@@ -77,8 +87,8 @@ function Invoke-VerifyStep {
         }
         else {
             Write-Bad 'Profile produced errors in a fresh pwsh:'
-            $errs | Select-Object -First 5 | ForEach-Object { Write-Dim $_.ToString() }
-            Add-Result -Step 'verify' -Item 'profile' -Status 'Failed' -Detail (($errs | Select-Object -First 1) | Out-String).Trim()
+            $errs | Select-Object -First 5 | ForEach-Object { Write-Dim $_ }
+            Add-Result -Step 'verify' -Item 'profile' -Status 'Failed' -Detail ([string]($errs | Select-Object -First 1))
         }
     }
 

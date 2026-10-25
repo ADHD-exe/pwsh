@@ -18,11 +18,17 @@ function Invoke-FontStep {
     Write-Info "$($fonts.Count) font files in settings\fonts"
 
     $counts = @{ Installed = 0; Current = 0; Failed = 0; DryRun = 0 }
+    $index  = Get-InstalledFontIndex
 
     foreach ($f in $fonts) {
-        $r = Install-FontFile -Font $f
+        $script:LastFontError = $null
+        $r = Install-FontFile -Font $f -Index $index
         $counts[$r]++
-        if ($r -eq 'Failed') { Write-Bad "font failed: $($f.Name) (see log)"; Add-Result -Step 'fonts' -Item $f.Name -Status 'Failed' -Detail 'copy or registry write failed' }
+        if ($r -eq 'Failed') {
+            $why = if ($script:LastFontError) { $script:LastFontError } else { 'copy or registry write failed' }
+            Write-Bad "font failed: $($f.Name) - $why"
+            Add-Result -Step 'fonts' -Item $f.Name -Status 'Failed' -Detail $why
+        }
     }
 
     Write-Ok ("fonts: {0} installed, {1} already current, {2} failed" -f $counts.Installed, $counts.Current, $counts.Failed)
