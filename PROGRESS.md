@@ -1,3 +1,18 @@
+# Progress report (checkpoint 10)
+
+Done (static edits only; no PowerShell in this sandbox, nothing re-run - please test)
+Diagnosis of the 14:26 run (log install-20261025-142602): the zip/checkout you ran still had the checkpoint-9 95-verify.ps1.
+Every PROFILEERR:: line was PSReadLine fallout or the YSU probe and was filtered correctly; the verify then fell back to raw stderr,
+where PowerShell's multi-line error rendering ("Line |", "~~~~", "Write-Error: ...profile.ps1:5") cannot match the PSReadLine filter.
+1. bootstrap/steps/95-verify.ps1: when the child finishes and reports its timing, only the tagged $Error dump is trusted
+   (raw stderr is used only if the child never reported). Distinct log lines only (the log held ~7600 duplicate lines).
+Still needs you
+- Make sure THIS version is in your checkout (git pull --rebase first), commit, push, re-run the installer.
+- Expect "Profile loads cleanly in a fresh pwsh".
+
+---
+(Previous report follows)
+
 # Progress report (checkpoint 9)
 
 Done in this checkpoint (static edits only; no PowerShell in this sandbox, nothing re-run - please test)
