@@ -15,12 +15,3 @@ Modules/
 Scripts/
 Help/
 
-# Per-machine state the vendored app configs must not carry
-settings/notepad++/session.xml
-settings/notepad++/*.bak
-settings/everything/Run History.csv
-settings/opencode/node_modules/
-settings/opencode/package-lock.json
-settings/atuin/key
-settings/atuin/session
-settings/atuin/*.db
