@@ -1,0 +1,26 @@
+.history/
+.vscode/
+*.log
+*.tmp
+*.cache
+.DS_Store
+Thumbs.db
+
+# Backups written by the installer before it replaces a file
+*.bak
+*.bak-*
+
+# Everything the installer downloads comes from PSGallery / GitHub at install time
+Modules/
+Scripts/
+Help/
+
+# Per-machine state the vendored app configs must not carry
+settings/notepad++/session.xml
+settings/notepad++/*.bak
+settings/everything/Run History.csv
+settings/opencode/node_modules/
+settings/opencode/package-lock.json
+settings/atuin/key
+settings/atuin/session
+settings/atuin/*.db

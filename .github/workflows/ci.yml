@@ -1,0 +1,62 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse every script (PowerShell 7)
+        shell: pwsh
+        run: |
+          $bad = 0
+          Get-ChildItem -Recurse -Include *.ps1,*.psd1 | Where-Object { $_.FullName -notmatch '\\(\.git|settings\\fonts)\\' } | ForEach-Object {
+            $e = $null; [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$e)
+            if ($e) { $bad++; $e | ForEach-Object { Write-Host "::error file=$($_.Extent.File),line=$($_.Extent.StartLineNumber)::$($_.Message)" } }
+          }
+          if ($bad) { exit 1 }
+
+      - name: Installer must parse under Windows PowerShell 5.1 too
+        shell: powershell
+        run: |
+          $bad = 0
+          # The orchestrator dot-sources EVERY file in bootstrap\lib and bootstrap\steps while still
+          # running in Windows PowerShell 5.1, so every one of them must parse there (not just a subset).
+          $files = @(Get-Item install.ps1) + @(Get-ChildItem bootstrap -Recurse -Include *.ps1,*.psd1)
+          $files | ForEach-Object {
+            $e = $null; [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$null, [ref]$e)
+            if ($e) { $bad++; $e | ForEach-Object { Write-Host "::error::$($_.Message) @ line $($_.Extent.StartLineNumber)" } }
+          }
+          if ($bad) { exit 1 }
+
+      - name: Unit tests
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File tests/Test-TerminalMerge.ps1
+          pwsh -NoProfile -File tests/Test-ProfileStep.ps1
+          pwsh -NoProfile -File tests/Test-ArgumentString.ps1
+
+      - name: Manifests are loadable and winget ids are unique
+        shell: pwsh
+        run: |
+          $p = (Import-PowerShellDataFile bootstrap/manifests/packages.psd1).Packages
+          $dupes = $p | Group-Object { $_.Id.ToLower() } | Where-Object Count -gt 1
+          if ($dupes) { $dupes | ForEach-Object { Write-Host "::error::duplicate winget id $($_.Name)" }; exit 1 }
+          Import-PowerShellDataFile bootstrap/manifests/modules.psd1 | Out-Null
+          Import-PowerShellDataFile bootstrap/manifests/path.psd1 | Out-Null
+
+      - name: JSON configs are valid
+        shell: pwsh
+        run: |
+          foreach ($f in 'settings/settings.json','settings/oh-my-rabbit.omp.json') {
+            Get-Content $f -Raw | ConvertFrom-Json | Out-Null; Write-Host "ok $f"
+          }
+
+      - name: PSScriptAnalyzer (errors only)
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $r = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error -ExcludeRule PSAvoidUsingConvertToSecureStringWithPlainText
+          $r | Format-Table -AutoSize
+          if ($r) { exit 1 }
