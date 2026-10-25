@@ -1,0 +1,83 @@
+# oh-my-rabbit palette for Yazi (same hex values as oh-my-rabbit.omp.json, fzf.conf and atuin's rabbit.toml).
+# Deployed to %APPDATA%\yazi\config\theme.toml by the installer, and only when Yazi is new enough for these
+# table names (see 80-configs.ps1). Keys follow the theme.toml reference for Yazi 26.9.1.
+#   cyan #00ffff   teal #27fcd1   green #33ff33   lime #f3ff13   cream #ffff80
+#   pink #ff42a0   purple #ce39f9  red #ff0000    ink #1C1B26    deep purple #120020
+
+[mgr]
+cwd             = { fg = "#27fcd1", bold = true }
+find_keyword    = { fg = "#f3ff13", bold = true, italic = true }
+find_position   = { fg = "#ff42a0", bold = true, italic = true }
+symlink_target  = { fg = "#ce39f9", italic = true }
+marker_copied   = { fg = "#33ff33", bg = "#33ff33" }
+marker_cut      = { fg = "#ff0000", bg = "#ff0000" }
+marker_marked   = { fg = "#00ffff", bg = "#00ffff" }
+marker_selected = { fg = "#f3ff13", bg = "#f3ff13" }
+count_copied    = { fg = "#1C1B26", bg = "#33ff33" }
+count_cut       = { fg = "#1C1B26", bg = "#ff0000" }
+count_selected  = { fg = "#1C1B26", bg = "#f3ff13" }
+border_style    = { fg = "#ce39f9" }
+
+[tabs]
+active   = { fg = "#1C1B26", bg = "#27fcd1", bold = true }
+inactive = { fg = "#27fcd1", bg = "#120020" }
+
+[mode]
+normal_main = { fg = "#1C1B26", bg = "#27fcd1", bold = true }
+normal_alt  = { fg = "#27fcd1", bg = "#120020" }
+select_main = { fg = "#1C1B26", bg = "#33ff33", bold = true }
+select_alt  = { fg = "#33ff33", bg = "#120020" }
+unset_main  = { fg = "#1C1B26", bg = "#ff42a0", bold = true }
+unset_alt   = { fg = "#ff42a0", bg = "#120020" }
+
+[status]
+perm_type       = { fg = "#00ffff" }
+perm_read       = { fg = "#f3ff13" }
+perm_write      = { fg = "#ff42a0" }
+perm_exec       = { fg = "#33ff33" }
+perm_sep        = { fg = "#ce39f9" }
+progress_label  = { fg = "#ffff80", bold = true }
+progress_normal = { fg = "#27fcd1", bg = "#120020" }
+progress_error  = { fg = "#ff0000", bg = "#120020" }
+
+[which]
+border          = { fg = "#ce39f9" }
+cand            = { fg = "#27fcd1" }
+rest            = { fg = "#ce39f9" }
+desc            = { fg = "#ff42a0" }
+separator_style = { fg = "#ce39f9" }
+
+[confirm]
+border = { fg = "#ce39f9" }
+title  = { fg = "#27fcd1", bold = true }
+btn_yes = { reversed = true }
+
+[notify]
+title_info  = { fg = "#27fcd1" }
+title_warn  = { fg = "#f3ff13" }
+title_error = { fg = "#ff0000" }
+
+[pick]
+border   = { fg = "#ce39f9" }
+active   = { fg = "#ff42a0", bold = true }
+
+[input]
+border   = { fg = "#ce39f9" }
+title    = { fg = "#27fcd1" }
+value    = { fg = "#ffff80" }
+selected = { reversed = true }
+
+[cmp]
+border   = { fg = "#ce39f9" }
+active   = { fg = "#ff42a0", bold = true }
+
+[tasks]
+border  = { fg = "#ce39f9" }
+title   = { fg = "#27fcd1" }
+hovered = { fg = "#ff42a0", bold = true }
+
+[help]
+border  = { fg = "#ce39f9" }
+chord   = { fg = "#27fcd1" }
+action  = { fg = "#ffff80" }
+hovered = { fg = "#ff42a0", bold = true }

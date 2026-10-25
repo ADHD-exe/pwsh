@@ -1,3 +1,31 @@
+# Progress report (checkpoint 12)
+
+Done (static edits only; nothing run - please test)
+- Default package tiers are now Core, Shell AND Tools (bootstrap/Install-Environment.ps1 param default + help text,
+  packages.psd1 comment). A plain `irm .../install.ps1 | iex` now also installs Notepad++, AutoHotkey v2, Everything,
+  Everything CLI, EverythingToolbar, CMake, Python 3.14, PeaZip and Autoruns. Apps stays opt-in (-Tier Core,Shell,Tools,Apps).
+- AutoHotkey, Everything and EverythingToolbar use admin installers, so expect extra UAC prompts (-NoAdmin skips them).
+- README.md and the install.ps1 header example updated to match (the options example now adds Apps).
+
+Still needs you: commit + push, re-run the installer, confirm the Tools packages install and verify still passes.
+  Quick dry run first: ... -WhatIf should print "tiers: Core, Shell, Tools".
+
+---
+(Previous report follows)
+
+# Progress report (checkpoint 11)
+
+Done: README.md rewritten for first-time users (static edit only, nothing run).
+- Added: "What you should know first", full package tables by tier (Core/Shell/Tools/Apps/Risky), npm package, all 9 PowerShell modules,
+  the 3 bundled font families (39 files), every system PATH folder, Windows Terminal settings, where each config is deployed,
+  key bindings and commands, installer options, troubleshooting, repo layout.
+- Checkpoint 10 (verify fix) is confirmed working by your 14:34 run: "Profile loads cleanly", Failed 0.
+- Known cosmetic issue: about 30 blank lines print once at the end of the installer's final shell (not in normal shells). Not fixed.
+
+Still needs you: commit + push README.md and PROGRESS.md.
+
+---
+(Previous report follows)
 # Progress report (checkpoint 10)
 
 Done (static edits only; no PowerShell in this sandbox, nothing re-run - please test)

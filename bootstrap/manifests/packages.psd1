@@ -1,7 +1,7 @@
 # =============================================================================
 # packages.psd1 - winget package manifest
 #
-# Tiers (selected with  install.ps1 -Tier Core,Shell,Tools ; the DEFAULT is Core,Shell):
+# Tiers (selected with  install.ps1 -Tier Core,Shell,Tools ; the DEFAULT is Core,Shell,Tools):
 #   Core  - the installer and profile cannot work without these
 #   Shell - the command-line stack the profile integrates with
 #   Tools - editors / system utilities that the repo's settings\ configure

@@ -11,7 +11,7 @@
                       profile, terminal, configs, path, verify
 
 .PARAMETER Tier
-    Package tiers to install. Default: Core, Shell.  Tools = Notepad++, AutoHotkey,
+    Package tiers to install. Default: Core, Shell, Tools.  Tools = Notepad++, AutoHotkey,
     Everything, CMake, Python ...  Apps = the optional desktop apps.
 
 .PARAMETER Only
@@ -47,7 +47,7 @@
 param(
     # Validated below instead of with ValidateSet: `pwsh -File x.ps1 -Tier Core,Shell`
     # delivers "Core,Shell" as ONE string, which ValidateSet would reject.
-    [string[]]$Tier = @('Core', 'Shell'),
+    [string[]]$Tier = @('Core', 'Shell', 'Tools'),
     [string[]]$Only,
 
     [ValidateSet('Machine', 'User')]

@@ -1,0 +1,16 @@
+# oh-my-rabbit palette for atuin's search UI (same hex values as oh-my-rabbit.omp.json).
+# Deployed to ~/.config/atuin/themes/rabbit.toml and selected by [theme] name in config.toml.
+# Atuin only accepts these seven keys; any other key makes it ignore the whole theme.
+
+[theme]
+name = "rabbit"
+parent = "default"
+
+[colors]
+AlertInfo  = "#33ff33"   # green  - success / info
+AlertWarn  = "#f3ff13"   # lime   - warnings
+AlertError = "#ff0000"   # red    - failed commands, errors
+Annotation = "#ce39f9"   # purple - borders, column labels
+Base       = "#00ffff"   # cyan   - normal text
+Guidance   = "#27fcd1"   # teal   - hints and key help
+Important  = "#ff42a0"   # pink   - the selected row / highlights
