@@ -36,6 +36,7 @@ jobs:
           pwsh -NoProfile -File tests/Test-TerminalMerge.ps1
           pwsh -NoProfile -File tests/Test-ProfileStep.ps1
           pwsh -NoProfile -File tests/Test-ArgumentString.ps1
+          pwsh -NoProfile -File tests/Test-Relaunch.ps1
 
       - name: Manifests are loadable and winget ids are unique
         shell: pwsh

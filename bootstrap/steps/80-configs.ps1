@@ -53,16 +53,31 @@ function Invoke-ConfigStep {
     # ---- Notepad++ (config.xml carries __USERPROFILE__ so it works for any user) ----
     $nppPaths = @('%ProgramFiles%\Notepad++\notepad++.exe', '%ProgramFiles(x86)%\Notepad++\notepad++.exe')
     if (Test-AppInstalled -Command 'notepad++' -Paths $nppPaths) {
-        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File) {
-            Copy-ConfigFile -Source $f.FullName -Target (Join-Path $env:APPDATA "Notepad++\$($f.Name)") `
-                -Tokens @{ '__USERPROFILE__' = $env:USERPROFILE } -SkipIfRunning 'notepad++' -Force:$Force
+        # Notepad++ rewrites config.xml when it exits, so close it first (gracefully; its session snapshot
+        # restores unsaved tabs), replace the files (originals are backed up), then reopen it.
+        $nppTokens  = @{ '__USERPROFILE__' = $env:USERPROFILE }
+        $nppChanges = @(Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File |
+            Where-Object { Test-ConfigWouldChange -Source $_.FullName -Target (Join-Path $env:APPDATA "Notepad++\$($_.Name)") -Tokens $nppTokens })
+        $nppApp = if ($WhatIfPreference -or $nppChanges.Count -eq 0) { $null } else { Stop-AppForConfig -ProcessName 'notepad++' }
+        try {
+            foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File) {
+                Copy-ConfigFile -Source $f.FullName -Target (Join-Path $env:APPDATA "Notepad++\$($f.Name)") `
+                    -Tokens @{ '__USERPROFILE__' = $env:USERPROFILE } -SkipIfRunning 'notepad++' -Force:$Force
+            }
         }
+        finally { Start-AppAfterConfig $nppApp }
     }
     else { Add-Result -Step 'configs' -Item 'notepad++' -Status 'Skipped' -Detail 'Notepad++ not installed (Tools tier)' }
 
     # ---- Everything ---------------------------------------------------------
     if (Test-AppInstalled -Paths @('%ProgramFiles%\Everything\Everything.exe')) {
-        Copy-ConfigFile -Source (Join-Path $s 'everything\Everything.ini') -Target (Join-Path $env:APPDATA 'Everything\Everything.ini') -SkipIfRunning 'Everything' -Force:$Force
+        $evTarget = Join-Path $env:APPDATA 'Everything\Everything.ini'
+        $evNeeds  = Test-ConfigWouldChange -Source (Join-Path $s 'everything\Everything.ini') -Target $evTarget
+        $evApp = if ($WhatIfPreference -or -not $evNeeds) { $null } else { Stop-AppForConfig -ProcessName 'Everything' -QuitArguments @('-quit') -StartArguments @('-startup') }
+        try {
+            Copy-ConfigFile -Source (Join-Path $s 'everything\Everything.ini') -Target (Join-Path $env:APPDATA 'Everything\Everything.ini') -SkipIfRunning 'Everything' -Force:$Force
+        }
+        finally { Start-AppAfterConfig $evApp }
     }
     else { Add-Result -Step 'configs' -Item 'everything' -Status 'Skipped' -Detail 'Everything not installed (Tools tier)' }
 
