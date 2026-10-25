@@ -10,8 +10,6 @@ function home { Set-Location $HOME }
 function docs { Set-Location ([Environment]::GetFolderPath("MyDocuments")) }
 function dl   { Set-Location "$HOME\Downloads" }
 function desk { Set-Location "$HOME\Desktop" }
-function vault { Set-Location "D:\" }
-function repo { Set-Location "C:\Repositories" }
 function vids { Set-Location ([Environment]::GetFolderPath('MyVideos')) }
 function projects { Set-Location (Join-Path $HOME 'Projects') }
 function tmp { Set-Location $env:TEMP }
@@ -46,8 +44,6 @@ function nav {
         "dl",   "Go to Downloads"
         "desk", "Go to Desktop"
         "tmp",  "Go to Temp folder"
-        "vault", "Go to D:\"
-        "repo", "Go to C:\Repositories"
         "vids", "Go to Videos"
         "projects", "Go to Projects"
         "rc",   "Go to Recycle Bin"
@@ -108,6 +104,7 @@ function qol {
             "so",     "Stack Overflow search"
             "gh-search", "GitHub search"
             "web",    "Open a URL"
+            "firefox", "Launch Firefox Developer Edition: firefox [url]"
             "serve",  "HTTP server in cwd: serve [port]"
         )
         "Winget" = @(
@@ -613,8 +610,8 @@ When you pick a file, its PATH is typed onto your command line.
 It does not open or run anything - you decide what to do with it.
 
 ## Where it looks
-- inside a git repo: every file git tracks (fast, and no junk)
-- anywhere else: files under the current folder, hidden ones included
+- always the folder you are in and everything below it (hidden files included)
+- files your .gitignore hides are left out, and so is the .git folder
 
 ## Try it
 - type `nvim ` then press [Ctrl+F], pick a file, press [Enter]
@@ -730,14 +727,32 @@ function ConvertTo-RabbitHelpText {
     $code   = & $fg $p.Cyan
     $text   = & $fg $p.Text
 
+    # Colour codes are added only AFTER the markup has been parsed. (Colouring the bullet first and then
+    # searching the line for [Key] let the "[" of an ESC[...m code pair with a later "]", which ate the
+    # escape sequences and printed fragments like "38;2;255;66;160m" in the help text.)
+    $plain = ($global:RabbitThemeEnabled -eq $false)
+    $span  = {
+        param($text, $keyColor, $codeColor, $textColor)
+        [regex]::Replace($text, '\[([^\]]+)\]|`([^`]+)`', {
+            param($m)
+            if ($m.Groups[1].Success) { "$keyColor$($m.Groups[1].Value)$textColor" } else { "$codeColor$($m.Groups[2].Value)$textColor" }
+        })
+    }
+
     $out = foreach ($line in ($Markup -split "\r?\n")) {
+        if ($plain) {
+            if     ($line -like '# *')  { $line.Substring(2); continue }
+            elseif ($line -like '## *') { $line.Substring(3); continue }
+            if ($line -like '- *') { $line = '• ' + $line.Substring(2) }
+            [regex]::Replace($line, '\[([^\]]+)\]|`([^`]+)`', { param($m) if ($m.Groups[1].Success) { $m.Groups[1].Value } else { $m.Groups[2].Value } })
+            continue
+        }
+
         if     ($line -like '# *')  { "$title$($line.Substring(2))$rs"; continue }
         elseif ($line -like '## *') { "$head$($line.Substring(3))$rs"; continue }
 
-        if ($line -like '- *') { $line = "$bullet•$rs$text$($line.Substring(1))" } else { $line = "$text$line" }
-        $line = [regex]::Replace($line, '\[([^\]]+)\]', { param($m) "$key$($m.Groups[1].Value)$text" })
-        $line = [regex]::Replace($line, '`([^`]+)`',    { param($m) "$code$($m.Groups[1].Value)$text" })
-        "$line$rs"
+        if ($line -like '- *') { $body = & $span $line.Substring(2) $key $code $text; "$bullet•$rs$text $body$rs" }
+        else                   { $body = & $span $line $key $code $text;             "$text$body$rs" }
     }
     $out -join "`n"
 }

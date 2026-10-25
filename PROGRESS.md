@@ -1,3 +1,40 @@
+# Progress report (checkpoint 14)
+Ctrl+F now always lists files in the current directory and below (fd, hidden files included, .gitignore and .git honoured),
+including inside git repos; it no longer switches to `git ls-files`. Help page 01 updated. Static edit only, not run.
+
+---
+(Previous report follows)
+
+# Progress report (checkpoint 13)
+
+Done (static edits only; no PowerShell in this sandbox, nothing run - please test)
+Install log 15:52 reviewed: Failed 0, profile loads cleanly. Two real bugs, both fixed:
+1. Notepad++ "--version not found, create it?": 95-verify.ps1 ran `notepad++ --version`; Notepad++ treats that as a file name.
+   GUI programs (wt, autoruns, notepad++) are no longer probed for a version.
+2. Ctrl+H help showed fragments like "38;2;255;66;160m": ConvertTo-RabbitHelpText coloured the bullet first, then its [Key] regex paired the
+   "[" of an ESC[...m colour code with a later "]" and ate the escape sequence. Markup is now parsed first and colours added afterwards
+   (functions.ps1). Plain text output when themes are declined.
+Requested changes:
+3. Removed the `vault` (D:\) and `repo` (C:\Repositories) helpers (functions.ps1 + the `nav` list) and the README note about "personal" shortcuts.
+4. Installer asks ONCE (together, before packages): "install the themes?" and "download AutoHotkey + launcher keybinds?".
+   -Themes Ask|Yes|No, -Keybinds Ask|Yes|No; answers remembered in %LOCALAPPDATA%\RabbitBootstrap; -Unattended reuses them (yes the first time).
+   Themes = No skips ALL of: Oh My Posh prompt theme (profile keeps the default prompt), Windows Terminal colour schemes, Atuin theme (and its
+   `name = "rabbit"` line), Yazi theme, fzf --color lines, Notepad++ stylers.xml, themed popup colours / help colours.
+   Fonts are not a theme and are still installed. Declining after an earlier "yes" does not delete files already deployed.
+   Keybinds = No: AutoHotkey is not installed and keybinds.ahk is not deployed.
+5. keybinds.ahk rewritten: a launcher key is created only if its program exists (pwsh/Windows PowerShell, Firefox Dev Edition, Notepad++,
+   Explorer, Mobility Center, SndVol; Store and network pane are Windows built-ins). Removed Spotify, Equibop, eM Client, OpenCam.
+   settings/autohotkey/bandlab_ahk.ahk deleted (personal). eM Client removed from the Apps list.
+6. Firefox Developer Edition moved to the Tools tier (installed by default), presence-checked before install (known paths, then winget list),
+   its folder added to the system PATH (path.psd1), and a `firefox` function in aliases.ps1 launches it. Verify reports it.
+README updated for all of the above.
+
+Still needs you: git pull --rebase, commit, push, re-run. Please check: the two prompts, `firefox`, Ctrl+H text, no Notepad++ popup,
+and a run with -Themes No (prompt stays default, no Terminal colour scheme added).
+
+---
+(Previous report follows)
+
 # Progress report (checkpoint 12)
 
 Done (static edits only; nothing run - please test)

@@ -9,6 +9,15 @@ Set-Alias ep Edit-Profile
 Set-Alias omp oh-my-posh
  
 function oc { opencode @args }
+
+# Firefox Developer Edition (installed by the installer's Tools tier). A function, so `firefox` works even
+# in a session that started before the install folder reached PATH.
+function firefox {
+    $exe = @("$env:ProgramFiles\Firefox Developer Edition\firefox.exe", "${env:ProgramFiles(x86)}\Firefox Developer Edition\firefox.exe") |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+    if (-not $exe) { Write-Warning 'Firefox Developer Edition is not installed - re-run the installer (Tools tier).'; return }
+    if ($args.Count -gt 0) { Start-Process -FilePath $exe -ArgumentList $args } else { Start-Process -FilePath $exe }
+}
 Set-Alias oco opencode
 Set-Alias c clear
 Set-Alias cls clear

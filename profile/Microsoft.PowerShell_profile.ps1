@@ -19,6 +19,10 @@ $global:RabbitRoot     = Split-Path -Parent $PSScriptRoot
 $global:RabbitSettings = Join-Path $global:RabbitRoot 'settings'
 $global:RabbitScripts  = Join-Path $PSScriptRoot 'aliases-functions-keybinds'
 
+# The installer asks once whether to install the colour themes. Declining writes this marker file, and
+# the profile then leaves the oh-my-rabbit prompt theme and the themed popups out.
+$global:RabbitThemeEnabled = -not (Test-Path -LiteralPath (Join-Path $env:LOCALAPPDATA 'RabbitBootstrap\themes.off'))
+
 # Non-interactive runs (pwsh -Command / -File, CI, scheduled tasks) do not need
 # prompts, key bindings or tool hooks. RABBIT_PROFILE_FORCE=1 overrides.
 $RabbitInteractive = [Environment]::UserInteractive -and -not ($env:RABBIT_PROFILE_FORCE -ne '1' -and
@@ -59,6 +63,7 @@ $global:RabbitPalette = [ordered]@{
 # fzf accent for one popup: each shortcut gets its own prompt color, everything else comes from fzf.conf.
 function Get-RabbitFzfTheme {
     param([ValidateSet('Mint', 'Cyan', 'Green', 'Pink', 'Purple', 'Yellow')][string]$Accent = 'Mint')
+    if (-not $global:RabbitThemeEnabled) { return }   # themes declined: fzf keeps its own default colours
     $c = $global:RabbitPalette[$Accent]
     "--color=border:$c,label:$c,prompt:$c,scrollbar:$c"
 }
@@ -99,7 +104,10 @@ Write-RabbitTrace 'atuin'
 
 $RabbitTheme = Join-Path $global:RabbitSettings 'oh-my-rabbit.omp.json'
 
-if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
+if (-not $global:RabbitThemeEnabled) {
+    # Themes were declined at install time: keep the default prompt.
+}
+elseif (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
     if (Test-Path -LiteralPath $RabbitTheme) {
         Invoke-Expression (& { oh-my-posh init pwsh --config $RabbitTheme | Out-String })
         $null = & prompt 2>$null
@@ -148,7 +156,7 @@ if ($RabbitHasReadLine) {
         Set-PSReadLineKeyHandler -Chord 'Ctrl+DownArrow' -Function HistorySearchForward
         Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
 
-        # Ctrl+f - fuzzy file search (git ls-files inside a repo, fd elsewhere)
+        # Ctrl+f - fuzzy file search, always in the current directory (fd; honours .gitignore)
         Set-PSReadLineKeyHandler -Chord Ctrl+f -ScriptBlock {
             if (-not ((Get-Command fzf -ErrorAction SilentlyContinue) -and (Get-Command fd -ErrorAction SilentlyContinue))) {
                 Write-Host "`nCtrl+f needs fzf and fd - re-run the installer to add them." -ForegroundColor Yellow
@@ -156,12 +164,8 @@ if ($RabbitHasReadLine) {
                 return
             }
 
-            $files = if ((Get-Command git -ErrorAction SilentlyContinue) -and (git rev-parse --is-inside-work-tree 2>$null)) {
-                git ls-files
-            }
-            else {
-                fd --type file --hidden --exclude .git
-            }
+            # Current directory and below, relative paths, every time (inside a git repo too).
+            $files = fd --type file --hidden --exclude .git
 
             $previewCmd = if (Get-Command bat -ErrorAction SilentlyContinue) { 'bat --style=numbers --color=always {}' } else { 'type {}' }
             $selected = $files | fzf --height 50% --layout reverse --border --border-label ' 🔎 files ' --preview $previewCmd (Get-RabbitFzfTheme -Accent Mint)

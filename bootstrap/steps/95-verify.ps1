@@ -14,8 +14,9 @@ function Invoke-VerifyStep {
     foreach ($p in $pkgs) {
         if (Test-CommandExists $p.Command) {
             $ver = ''
-            # wt and autoruns are GUI launchers: asking them for --version can open a window instead of printing.
-            if ($p.Command -notin 'wt', 'autoruns') {
+            # GUI programs must never be asked for --version: Windows Terminal and Autoruns open a window, and
+            # Notepad++ treats "--version" as a file name and offers to create it.
+            if ($p.Command -notin 'wt', 'autoruns', 'notepad++') {
                 try { $ver = ((& $p.Command --version 2>$null) | Select-Object -First 1) } catch { }
             }
             Write-Ok ("{0,-12} {1}" -f $p.Command, $ver)
@@ -28,7 +29,8 @@ function Invoke-VerifyStep {
 
     # ---- theme --------------------------------------------------------------
     $theme = Join-Path $RepoRoot 'settings\oh-my-rabbit.omp.json'
-    if (Test-JsonFile -Path $theme) {
+    if ($script:InstallThemes -eq $false) { Write-Dim 'Themes declined - theme checks skipped.' }
+    elseif (Test-JsonFile -Path $theme) {
         Write-Ok 'oh-my-rabbit.omp.json parses'
 
         if (Test-CommandExists 'oh-my-posh') {
@@ -39,6 +41,14 @@ function Invoke-VerifyStep {
         }
     }
     else { Write-Bad 'theme JSON invalid'; Add-Result -Step 'verify' -Item 'theme' -Status 'Failed' -Detail 'oh-my-rabbit.omp.json does not parse' }
+
+    # ---- Firefox Developer Edition (Tools tier): installed, and reachable as `firefox` -----------------------
+    if ($Tier -contains 'Tools') {
+        $ffExe = @('%ProgramFiles%\Firefox Developer Edition\firefox.exe', '%ProgramFiles(x86)%\Firefox Developer Edition\firefox.exe') |
+            ForEach-Object { Expand-Vars $_ } | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+        if ($ffExe) { Write-Ok "Firefox Developer Edition  $ffExe" }
+        else { Write-Warn 'Firefox Developer Edition was not found'; Add-Result -Step 'verify' -Item 'firefox' -Status 'Warn' -Detail 'Firefox Developer Edition not installed' }
+    }
 
     # ---- font ---------------------------------------------------------------
     $fontKey = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts'

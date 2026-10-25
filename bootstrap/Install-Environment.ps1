@@ -30,6 +30,15 @@
     Replace an existing ~\.pwsh with a fresh clone without asking. Without it (and not -Unattended)
     the installer asks; -Unattended updates the existing copy in place.
 
+.PARAMETER Themes
+    Ask (default), Yes or No. The installer asks ONCE whether to install all the colour themes together
+    (Oh My Posh prompt theme, Windows Terminal colour scheme, Atuin, Yazi, fzf colours, Notepad++ styles).
+    No skips every theme; Yes installs them all. -Unattended with Ask uses the remembered answer (Yes the first time).
+
+.PARAMETER Keybinds
+    Ask (default), Yes or No. Whether to install AutoHotkey and the program-launcher keybinds script
+    (settings\autohotkey\keybinds.ahk). The script only binds keys for programs that exist on the machine.
+
 .PARAMETER NoRelaunch
     Do not continue (verification) in a newly opened terminal after PATH changes.
 
@@ -59,6 +68,12 @@ param(
     [string]$RepoUrl    = 'https://github.com/ADHD-exe/pwsh.git',
     [string]$Branch     = 'main',
     [string]$SourceRoot,
+
+    [ValidateSet('Ask', 'Yes', 'No')]
+    [string]$Themes = 'Ask',
+
+    [ValidateSet('Ask', 'Yes', 'No')]
+    [string]$Keybinds = 'Ask',
 
     [switch]$VerifyOnly,
     [switch]$IncludeRisky,
@@ -188,10 +203,32 @@ try {
     # ---- interactive part first, so the long installs can run unattended ----
     if (Test-RunStep 'git') { Invoke-Step -Name 'Git identity and GitHub SSH' -Action { Invoke-GitStep -GitUser $GitUser -GitEmail $GitEmail -Unattended:$Unattended -SkipSsh:$SkipSsh } }
 
+    # ---- the two optional extras, asked together so the long installs can run unattended ----
+    # A partial run (-Only ...) that does not touch them reuses the remembered answers instead of asking again.
+    $needsChoices = (-not $Only) -or [bool]@('packages', 'terminal', 'configs', 'profile' | Where-Object { $Only -contains $_ })
+    $noAsk        = (-not $needsChoices) -or $ResumeAfterPath
+
+    $themesPrompt   = 'Install the colour themes (prompt, terminal, Atuin, Yazi, fzf, Notepad++)? All together, or none at all.'
+    $keybindsPrompt = 'Download AutoHotkey and the program-launcher keybinds script (Win+Enter, Win+B, Win+N ...)?'
+    $script:InstallThemes   = Resolve-Choice -Name 'themes'   -Setting $Themes   -Unattended:$Unattended -NoAsk:$noAsk -Prompt $themesPrompt
+    $script:InstallKeybinds = Resolve-Choice -Name 'keybinds' -Setting $Keybinds -Unattended:$Unattended -NoAsk:$noAsk -Prompt $keybindsPrompt
+
+    if (-not $WhatIfPreference) {
+        $themesOff = Join-Path $stateDir 'themes.off'
+        if ($script:InstallThemes) { Remove-Item -LiteralPath $themesOff -Force -ErrorAction SilentlyContinue }
+        else {
+            $null = New-Item -ItemType Directory -Path $stateDir -Force
+            Set-Content -LiteralPath $themesOff -Value 'themes declined at install time' -Encoding ASCII
+        }
+    }
+    Write-Info ('themes: {0}   keybinds: {1}' -f $(if ($script:InstallThemes) { 'yes' } else { 'no (skipped everywhere)' }), $(if ($script:InstallKeybinds) { 'yes' } else { 'no' }))
+
     if (Test-RunStep 'packages') {
         $rest = @($Tier | Where-Object { $_ -ne 'Core' })
         if ($rest.Count -gt 0) {
-            Invoke-Step -Name ("Packages ({0})" -f ($rest -join ', ')) -Action { Invoke-PackageStep -Tier $rest -IncludeRisky:$IncludeRisky -NoAdmin:$NoAdmin }
+            # AutoHotkey itself is only installed when its keybinds script was wanted.
+            $skipIds = if ($script:InstallKeybinds) { @() } else { @('AutoHotkey.AutoHotkey') }
+            Invoke-Step -Name ("Packages ({0})" -f ($rest -join ', ')) -Action { Invoke-PackageStep -Tier $rest -IncludeRisky:$IncludeRisky -NoAdmin:$NoAdmin -ExcludeId $skipIds }
         }
     }
 
