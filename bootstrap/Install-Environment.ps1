@@ -26,6 +26,10 @@
 .PARAMETER GitEmail
     Git user.email. Only used when none is configured yet; if omitted you are asked.
 
+.PARAMETER FreshRepo
+    Replace an existing ~\.pwsh with a fresh clone without asking. Without it (and not -Unattended)
+    the installer asks; -Unattended updates the existing copy in place.
+
 .PARAMETER NoRelaunch
     Do not continue (verification) in a newly opened terminal after PATH changes.
 
@@ -64,6 +68,7 @@ param(
     [switch]$SkipSsh,
     [switch]$Elevate,
     [switch]$NoRelaunch,
+    [switch]$FreshRepo,
 
     # internal -------------------------------------------------------------
     [switch]$Relaunched,
@@ -174,7 +179,7 @@ try {
 
     if (Test-RunStep 'repo') {
         Invoke-Step -Name "Repository -> $InstallDir" -Required -Action {
-            $r = @(Invoke-RepoStep -InstallDir $InstallDir -SourceRoot $SourceRoot -RepoUrl $RepoUrl -Branch $Branch)
+            $r = @(Invoke-RepoStep -InstallDir $InstallDir -SourceRoot $SourceRoot -RepoUrl $RepoUrl -Branch $Branch -Fresh:$FreshRepo -Unattended:$Unattended)
             $script:RepoRoot = [string]$r[-1]
         }
     }
@@ -212,8 +217,15 @@ try {
             # Run the permanent copy: the temp folder this run started from is deleted when it exits.
             $resumeScript = Join-Path $script:RepoRoot 'bootstrap\Install-Environment.ps1'
             if (-not (Test-Path -LiteralPath $resumeScript)) { $resumeScript = $script:OrchestratorPath }
-            $resumeArgs = @('-ResumeAfterPath', '-InstallDir', $script:RepoRoot, '-Tier', ($Tier -join ','))
-            $script:HandedOff = Start-ResumeInNewTerminal -ScriptPath $resumeScript -Arguments $resumeArgs
+
+            # Never launch a copy that predates the handoff (it would fail on the unknown -ResumeAfterPath parameter).
+            if (-not (Select-String -LiteralPath $resumeScript -Pattern 'ResumeAfterPath' -Quiet)) {
+                Write-Warn "$resumeScript is out of date - finishing the check in this window instead."
+            }
+            else {
+                $resumeParams = @{ ResumeAfterPath = $true; InstallDir = [string]$script:RepoRoot; Tier = ($Tier -join ',') }
+                $script:HandedOff = Start-ResumeInNewTerminal -ScriptPath $resumeScript -Parameters $resumeParams
+            }
         }
 
         if (-not $script:HandedOff) {

@@ -1,18 +1,26 @@
-# Progress report (checkpoint 7)
+# Progress report (checkpoint 8)
 
 Done (static edits only; no PowerShell in this sandbox, nothing re-run - please test)
-1. openclaw removed: packages.psd1 (NpmGlobals now only claude-code), `oc` alias now just runs opencode, README.
-2. Git step (55-git.ps1) rewritten so each part is checked first and skipped if already done:
-   - git-lfs filters, user.name, user.email: only set/asked when missing (email is now ASKED, no more noreply guess)
-   - SSH: tested first (silent, any key/agent); if it already works nothing else happens
-   - if not working: key created only if absent, public key SHOWN (+ clipboard, add-key page), big "DO NOT CONTINUE" notice, and the installer LOOPS until GitHub accepts the key. Typing SKIP is the only way past it.
-   - https->ssh rewrite only set if not already set
-   - new -GitEmail parameter (and -GitUser) are used only if git has no value yet
-3. After the PATH step the installer opens a NEW terminal (wt.exe new window, plain pwsh window as fallback) that runs only verification (-ResumeAfterPath), rebuilds PATH from the registry first, then leaves you in your configured shell. -NoRelaunch / -Unattended / -WhatIf keep everything in the current window. Runs the permanent copy in ~\.pwsh, not the temp download.
-4. Already idempotent (audited, unchanged): repo, packages, modules, profile, terminal, configs, path.
-Earlier (checkpoint 6): keybinds guard, verify false-positive, fonts non-fatal, npm diagnostics.
+1. ROOT CAUSE of "Could not fast-forward", missing fonts, missing settings\git\ignore and the failing new terminal:
+   30-repo.ps1 updated the shallow clone with `fetch --depth 1` + `merge --ff-only`. A depth-1 fetch drops the new
+   commit's parents, so git can never prove the old HEAD is an ancestor: the fast-forward fails whenever the clone is
+   behind. ~\.pwsh therefore stayed on an old commit (no fonts, no settings\git\ignore) and the new-terminal handoff
+   launched that OLD Install-Environment.ps1, which has no -ResumeAfterPath parameter, so it failed every time.
+   Fix: fetch + `reset --hard FETCH_HEAD` (only when the tree is clean, as before). If git still cannot update, the
+   freshly downloaded files are copied over the install dir so ~\.pwsh and the download never diverge.
+2. New-terminal handoff hardened (Relaunch.ps1): command is passed as -EncodedCommand (no wt.exe quoting / ';' issues),
+   parameters are splatted from a hashtable, and any start-up error is printed and the window waits for Enter instead of
+   vanishing. Install-Environment.ps1 refuses to launch a copy that lacks -ResumeAfterPath and verifies in-place instead.
+3. Notepad++ / Everything configs are no longer skipped while the app runs. Originals are backed up (NAME.bak-<timestamp>)
+   and replaced on the first run. Because those apps rewrite their config on exit, the installer first closes them
+   GRACEFULLY (never killed; Everything via -quit), replaces the files, then reopens them. Only done when a file would
+   actually change. If an app will not close, the file is still replaced and a warning explains it may be overwritten.
+4. tests\Test-Relaunch.ps1 added (parses the generated handoff command with the real PowerShell parser) and wired into CI.
 
 Still needs you
-- Commit + push everything (incl. settings/git/ignore), then run on a throwaway VM / re-run on DeathStar
-- Add settings\fonts (.ttf) or install a Nerd Font manually
-- Check: does the new wt window open and show "Continuing in a new terminal"?
+- Commit + push (settings\git\ignore and settings\fonts are tracked in this checkout; confirm they are on GitHub main)
+- Re-run: irm .../install.ps1 | iex   (first run will update ~\.pwsh, install the fonts, deploy git\ignore)
+- Check: the new wt window shows "Continuing in a new terminal"; if not, the red error text now stays on screen - send it to me
+- Check Notepad++ / Everything reopen with the new settings
+
+Earlier (checkpoint 7): openclaw removed; git step rewritten (skip what is done, SSH loop); handoff terminal added.

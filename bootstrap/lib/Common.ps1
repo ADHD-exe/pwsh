@@ -183,7 +183,8 @@ function Copy-ConfigFile {
           * identical content          -> left alone ("already current")
           * different existing content -> backed up first, then replaced
           * -Tokens                    -> {'__USERPROFILE__' = value} replacements
-          * -SkipIfRunning <process>   -> app rewrites its config on exit; do not race it
+          * -SkipIfRunning <process>   -> app rewrites its config on exit. NOT skipped any more: the file is backed up
+                                          and replaced anyway (the config step closes the app first and reopens it)
           * -WhatIf / -Confirm are honoured
     #>
     [CmdletBinding(SupportsShouldProcess)]
@@ -204,11 +205,9 @@ function Copy-ConfigFile {
         return
     }
 
-    if ($SkipIfRunning -and -not $Force -and (Get-Process -Name $SkipIfRunning -ErrorAction SilentlyContinue)) {
-        Write-Warn "$SkipIfRunning is running and rewrites $label on exit - skipped. Close it and re-run (or use -Force)."
-        Add-Result -Step $Step -Item $label -Status 'Skipped' -Detail "$SkipIfRunning is running"
-        return
-    }
+    # An app that is still running when we get here (it would not close) may overwrite the new file on exit.
+    # The original is backed up and the replacement goes in regardless; just say so.
+    $stillRunning = $SkipIfRunning -and (Get-Process -Name $SkipIfRunning -ErrorAction SilentlyContinue)
 
     $content = (Get-Content -LiteralPath $Source -Raw)
 
@@ -234,7 +233,11 @@ function Copy-ConfigFile {
 
     Write-Utf8NoBom -Path $Target -Content $content
     Write-Ok "Deployed $label -> $Target"
-    Add-Result -Step $Step -Item $label -Status 'Ok' -Detail 'deployed'
+    if ($stillRunning) {
+        Write-Warn "$SkipIfRunning is still running and may rewrite $label when it exits - close it, then re-run if the settings revert."
+        Add-Result -Step $Step -Item $label -Status 'Warn' -Detail "deployed while $SkipIfRunning was running (may be overwritten on exit)"
+    }
+    else { Add-Result -Step $Step -Item $label -Status 'Ok' -Detail 'deployed' }
 }
 
 function Test-JsonFile {
@@ -270,4 +273,69 @@ function ConvertTo-ArgumentString {
         '"' + $q + '"'
     }
     return ($parts -join ' ')
+}
+
+function Stop-AppForConfig {
+    <#
+        Closes an app that rewrites its config on exit so the replacement file is not overwritten by it.
+        Graceful only (CloseMainWindow / Everything -quit): nothing is ever killed, so no unsaved work is lost.
+        Returns a record for Start-AppAfterConfig, or $null when the app was not running or would not close.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$ProcessName,
+        [string[]]$QuitArguments,
+        [string[]]$StartArguments,
+        [int]$TimeoutSeconds = 15
+    )
+
+    $procs = @(Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)
+    if ($procs.Count -eq 0) { return $null }
+
+    $exe = ($procs | Where-Object { $_.Path } | Select-Object -First 1).Path
+    if (-not $exe) { return $null }
+
+    Write-Info "$ProcessName is running - closing it so its config can be replaced (it is reopened afterwards)."
+
+    try {
+        if ($QuitArguments) { Start-Process -FilePath $exe -ArgumentList $QuitArguments -ErrorAction Stop | Out-Null }
+        else { foreach ($p in $procs) { [void]$p.CloseMainWindow() } }
+
+        $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+        while ((Get-Date) -lt $deadline -and (Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)) { Start-Sleep -Milliseconds 300 }
+    }
+    catch { Write-Dim "Could not ask $ProcessName to close: $($_.Exception.Message)" }
+
+    if (Get-Process -Name $ProcessName -ErrorAction SilentlyContinue) {
+        Write-Warn "$ProcessName did not close (a save prompt may be open). Its config is replaced anyway; close it to apply."
+        return $null
+    }
+
+    return [pscustomobject]@{ Exe = $exe; StartArguments = $StartArguments; Name = $ProcessName }
+}
+
+function Start-AppAfterConfig {
+    param($Record)
+
+    if (-not $Record) { return }
+
+    try {
+        if ($Record.StartArguments) { Start-Process -FilePath $Record.Exe -ArgumentList $Record.StartArguments -ErrorAction Stop | Out-Null }
+        else { Start-Process -FilePath $Record.Exe -ErrorAction Stop | Out-Null }
+        Write-Ok "$($Record.Name) reopened"
+    }
+    catch { Write-Warn "Could not reopen $($Record.Name): $($_.Exception.Message)" }
+}
+
+function Test-ConfigWouldChange {
+    <# $true when deploying Source to Target (after token replacement) would change the target file. #>
+    param([string]$Source, [string]$Target, [hashtable]$Tokens)
+
+    if (-not (Test-Path -LiteralPath $Source)) { return $false }
+    if (-not (Test-Path -LiteralPath $Target)) { return $true }
+
+    $want = Get-Content -LiteralPath $Source -Raw
+    if ($Tokens) { foreach ($key in $Tokens.Keys) { $want = $want.Replace($key, [string]$Tokens[$key]) } }
+    $have = Get-Content -LiteralPath $Target -Raw
+
+    return (($have -replace "`r`n", "`n").TrimEnd() -ne ($want -replace "`r`n", "`n").TrimEnd())
 }
