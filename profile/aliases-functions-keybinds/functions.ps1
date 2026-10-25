@@ -535,19 +535,24 @@ function Invoke-CommandPalette {
         "🚀 Git Push"
         "📥 Git Pull"
         "🗂️ Yazi"
+        "❓ Help (Ctrl+h)"
         "🏠 Home"
         "📁 Downloads"
         "📄 Documents"
         "🖥️ Desktop"
     )
 
+    $theme = if (Get-Command Get-RabbitFzfTheme -ErrorAction SilentlyContinue) { Get-RabbitFzfTheme -Accent Pink } else { '--color=prompt:#ff42a0' }
+
     $selection = $commands |
         fzf `
             --height 40% `
             --layout reverse `
             --border `
+            --border-label " 🚀 palette " `
             --prompt "⚡ Rabbit Command Palette > " `
-            --header "Modern PowerShell Toolkit"
+            --header "Modern PowerShell Toolkit" `
+            $theme
 
     switch ($selection) {
 
@@ -557,9 +562,226 @@ function Invoke-CommandPalette {
         "🚀 Git Push" { gp }
         "📥 Git Pull" { gl }
         "🗂️ Yazi" { yy }
+        "❓ Help (Ctrl+h)" { Show-RabbitHelp }
         "🏠 Home" { home }
         "📁 Downloads" { dl }
         "📄 Documents" { docs }
         "🖥️ Desktop" { desk }
     }
 }
+
+# =========================================================
+# RABBIT HELP  (Ctrl+h)  -  what each shortcut does, in plain words
+# =========================================================
+# Topics live in the list below. Each one is rendered into a small colored text
+# file (palette comes from $global:RabbitPalette, i.e. oh-my-rabbit.omp.json) and
+# shown in fzf's preview pane, so you can arrow through them without leaving the
+# popup. Enter prints the highlighted page into the terminal so you can keep it.
+
+function Get-RabbitHelpTopics {
+    # Mini-markup:  "# title"  "## heading"  "- bullet"  [Key]  `code`
+    [ordered]@{
+        '00 ⚡ Overview - all keys at a glance' = @'
+# Rabbit keys at a glance
+
+## At the prompt
+- [Ctrl+F]       find a file and drop its path on your command line
+- [Alt+Space]    jump to a folder you have used before
+- [Ctrl+Y]       open the Yazi file manager (the shell follows you out)
+- [Ctrl+Space]   command palette - a short menu of handy actions
+- [Ctrl+R] or [Up]   search your whole command history (Atuin)
+- [Ctrl+H]       this help
+
+## More fzf keys (PSFzf)
+- [Ctrl+T]  insert a path     [Alt+C]  cd somewhere     [Alt+R]  PSReadLine history
+- type `fzf?` for the full fzf cheat sheet, `Test-FzfSetup` to check the wiring
+
+## Inside any fuzzy list
+- type to filter, [Up]/[Down] to move, [Enter] to pick, [Esc] to cancel
+- [Ctrl+/] toggles the preview pane
+- [Ctrl+Y] copy path   [Ctrl+O] open   [Ctrl+E] reveal in Explorer
+  (those three act on the highlighted file, in lists that show files)
+
+Pick a topic on the left to read about it.
+'@
+        '01 🔎 Ctrl+F - file search' = @'
+# Ctrl+F  -  find a file
+
+## What it does
+Opens a fuzzy list of files, with a preview of the highlighted one.
+When you pick a file, its PATH is typed onto your command line.
+It does not open or run anything - you decide what to do with it.
+
+## Where it looks
+- inside a git repo: every file git tracks (fast, and no junk)
+- anywhere else: files under the current folder, hidden ones included
+
+## Try it
+- type `nvim ` then press [Ctrl+F], pick a file, press [Enter]
+  your line now reads `nvim path\to\file` - press [Enter] again to run it
+- you do not need exact names: `prof ps1` finds `Microsoft.PowerShell_profile.ps1`
+
+## Filtering tricks
+- words are ANDed:  `readme md`
+- `'word`  must match exactly      `^word`  must start with it
+- `word$`  must end with it        `!word`  must NOT contain it
+
+## Good to know
+- [Esc] cancels and leaves your line alone
+- needs fzf and fd (the installer adds both)
+- looking for a file anywhere on C:?  use `ff name` instead
+'@
+        '02 🧭 Alt+Space - smart jump' = @'
+# Alt+Space  -  smart jump
+
+## What it does
+Shows the folders you have visited before (ranked by zoxide: recent and
+frequent ones first). Pick one and you are already `cd`-ed there.
+
+## How it learns
+Every time you move around the shell, zoxide takes note. A brand new
+machine has an empty list - it fills up as you work, so give it a day.
+
+## Try it
+- press [Alt+Space], type a few letters of any project folder, press [Enter]
+- no menu needed: `z proj` jumps straight to the best match for "proj"
+
+## Good to know
+- the preview shows what is inside the highlighted folder
+- [Esc] cancels and stays where you are
+- needs zoxide and fzf (the installer adds both)
+- jump to a folder you have NEVER been in:  `cdf name`  (searches all of C:)
+'@
+        '03 🗂️ Ctrl+Y - Yazi file manager' = @'
+# Ctrl+Y  -  Yazi
+
+## What it does
+Opens Yazi, a full-screen file manager in the terminal: three columns -
+parent folder, current folder, and a preview of what is under the cursor.
+When you quit, your shell lands in the folder you were looking at.
+(Typing `yy` does the same thing.)
+
+## The five keys to start with
+- [h] [j] [k] [l]  or arrows - left (up a folder), down, up, right (open it)
+- [Enter]   open the file with its default program
+- [q]       quit and cd the shell to this folder
+- [Q]       quit WITHOUT changing folder
+- [~]       Yazi's own full key list (also [F1])
+
+## Then these
+- [Space] mark files    [y] copy    [x] cut    [p] paste
+- [d] send to recycle bin    [a] new file (end with `\` for a folder)    [r] rename
+- [/] find in this folder    [.] show / hide hidden files
+
+## Good to know
+- nothing is moved until you press [p] - marking and copying are safe
+- Yazi wears the same oh-my-rabbit colors as the prompt
+'@
+        '04 🚀 Ctrl+Space - command palette' = @'
+# Ctrl+Space  -  command palette
+
+## What it does
+A short menu of things you do all the time. Type to filter, press
+[Enter] to run the highlighted one. Nothing to remember.
+
+## What is on it
+- edit or reload your profile
+- git status / push / pull
+- open Yazi
+- jump to Home, Downloads, Documents, Desktop
+- open this help
+
+## Make it yours
+The list lives in `Invoke-CommandPalette` (functions.ps1). Add a line to the
+list and a matching line to the `switch` below it - that is all it takes.
+'@
+        '05 📜 Ctrl+R / Up - history (Atuin)' = @'
+# Ctrl+R or Up  -  history search
+
+## What it does
+Atuin keeps every command you have run - with the folder, time and whether it
+worked - and lets you fuzzy-search all of it, not just this window.
+
+## Try it
+- press [Ctrl+R], type a few letters of an old command, press [Enter]
+- start typing a command, then press [Up]: the search opens with your text
+
+## Good to know
+- [Ctrl+Up] / [Ctrl+Down] are the plain PSReadLine history (prefix match)
+- [Alt+R] is the fzf version of PSReadLine history
+'@
+    }
+}
+
+function ConvertTo-RabbitHelpText {
+    param([Parameter(Mandatory)][string]$Markup)
+
+    $p   = $global:RabbitPalette
+    $esc = [char]27
+    $rs  = "$esc[0m"
+    $fg  = { param($hex, [switch]$Bold)
+        $r = [Convert]::ToInt32($hex.Substring(1, 2), 16); $g = [Convert]::ToInt32($hex.Substring(3, 2), 16); $b = [Convert]::ToInt32($hex.Substring(5, 2), 16)
+        "$esc[$(if ($Bold) { '1;' })38;2;$r;$g;${b}m" }
+
+    $title  = & $fg $p.Mint   -Bold
+    $head   = & $fg $p.Purple -Bold
+    $bullet = & $fg $p.Pink
+    $key    = & $fg $p.Cream  -Bold
+    $code   = & $fg $p.Cyan
+    $text   = & $fg $p.Text
+
+    $out = foreach ($line in ($Markup -split "\r?\n")) {
+        if     ($line -like '# *')  { "$title$($line.Substring(2))$rs"; continue }
+        elseif ($line -like '## *') { "$head$($line.Substring(3))$rs"; continue }
+
+        if ($line -like '- *') { $line = "$bullet•$rs$text$($line.Substring(1))" } else { $line = "$text$line" }
+        $line = [regex]::Replace($line, '\[([^\]]+)\]', { param($m) "$key$($m.Groups[1].Value)$text" })
+        $line = [regex]::Replace($line, '`([^`]+)`',    { param($m) "$code$($m.Groups[1].Value)$text" })
+        "$line$rs"
+    }
+    $out -join "`n"
+}
+
+function Show-RabbitHelp {
+    <#
+    .SYNOPSIS
+        Ctrl+h help launcher: what Ctrl+F, Alt+Space, Ctrl+Y and Ctrl+Space do.
+    .DESCRIPTION
+        Opens a themed fzf list of topics with a live preview. Enter prints the
+        highlighted page into the terminal. Without fzf, prints every page.
+    #>
+    [CmdletBinding()]
+    param()
+
+    $topics = Get-RabbitHelpTopics
+    $dir    = Join-Path ([IO.Path]::GetTempPath()) 'rabbit-help'
+    $null   = New-Item -ItemType Directory -Path $dir -Force
+    $utf8   = [Text.UTF8Encoding]::new($false)
+
+    $rows  = foreach ($name in $topics.Keys) {
+        $file = Join-Path $dir (($name -replace '[^A-Za-z0-9]+', '-').Trim('-') + '.txt')
+        [IO.File]::WriteAllText($file, (ConvertTo-RabbitHelpText $topics[$name]) + "`n", $utf8)
+        "$name`t$file"
+    }
+
+    if (-not (Get-Command fzf -ErrorAction SilentlyContinue)) {
+        foreach ($row in $rows) { Write-Host (Get-Content -LiteralPath ($row -split "`t")[1] -Raw); Write-Host '' }
+        return
+    }
+
+    $theme = if (Get-Command Get-RabbitFzfTheme -ErrorAction SilentlyContinue) { Get-RabbitFzfTheme -Accent Cyan } else { '--color=border:#00ffff' }
+
+    $picked = $rows | fzf --delimiter "`t" --with-nth 1 --no-multi `
+        --height 85% --layout reverse --border rounded --border-label ' ❓ rabbit keys ' `
+        --prompt 'topic > ' --info hidden `
+        --header 'arrows move · enter prints the page here · esc closes' `
+        --preview 'type {2}' --preview-window 'right,68%,border-left,wrap' `
+        --bind 'ctrl-y:ignore,ctrl-o:ignore,ctrl-e:ignore' $theme
+
+    if ($picked) {
+        Write-Host ''
+        Write-Host (Get-Content -LiteralPath (($picked | Select-Object -First 1) -split "`t")[1] -Raw)
+    }
+}
+
+Set-Alias keys Show-RabbitHelp

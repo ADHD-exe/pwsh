@@ -24,6 +24,11 @@ function Invoke-ConfigStep {
     # ---- Atuin --------------------------------------------------------------
     if (Test-AppInstalled -Command 'atuin') {
         Copy-ConfigFile -Source (Join-Path $s 'atuin\config.toml') -Target (Join-Path $h '.config\atuin\config.toml') -Force:$Force
+
+        # Colour theme(s) - config.toml selects 'rabbit' (the oh-my-rabbit palette) by name.
+        foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'atuin\themes') -Filter *.toml -File -ErrorAction SilentlyContinue) {
+            Copy-ConfigFile -Source $f.FullName -Target (Join-Path $h ".config\atuin\themes\$($f.Name)") -Force:$Force
+        }
     }
     else { Add-Result -Step 'configs' -Item 'atuin' -Status 'Skipped' -Detail 'atuin not installed' }
 
@@ -32,6 +37,12 @@ function Invoke-ConfigStep {
     foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'fzf') -File | Where-Object { $_.Name -notin 'Install-FzfConfig.ps1', 'README.md' }) {
         Copy-ConfigFile -Source $f.FullName -Target (Join-Path $fzfTarget $f.Name) -Force:$Force
     }
+
+    # ---- yazi: oh-my-rabbit colour theme (Windows reads %APPDATA%\yazi\config) ---
+    if (Test-AppInstalled -Command 'yazi') {
+        Copy-ConfigFile -Source (Join-Path $s 'yazi\theme.toml') -Target (Join-Path $env:APPDATA 'yazi\config\theme.toml') -Force:$Force
+    }
+    else { Add-Result -Step 'configs' -Item 'yazi' -Status 'Skipped' -Detail 'yazi not installed' }
 
     # ---- git ignore ---------------------------------------------------------
     Copy-ConfigFile -Source (Join-Path $s 'git\ignore') -Target (Join-Path $h '.config\git\ignore') -Force:$Force

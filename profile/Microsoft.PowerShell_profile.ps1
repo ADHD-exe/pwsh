@@ -46,6 +46,24 @@ $env:EDITOR = $env:VISUAL = if ($editor) { $editor } else { 'notepad' }
 if (-not $RabbitInteractive) { return }
 
 # ---------------------------------------------------------
+# Shared palette - the colors of oh-my-rabbit.omp.json, reused by fzf, Atuin, Yazi
+# and the Ctrl+F / Alt+Space / Ctrl+Space / Ctrl+h popups so they all match the prompt.
+# (Static copies live in settings\fzf\fzf.conf, settings\atuin\themes and settings\yazi.)
+# ---------------------------------------------------------
+$global:RabbitPalette = [ordered]@{
+    Mint   = '#27fcd1'; Cyan   = '#00ffff'; Green  = '#33f07a'; Pink   = '#ff42a0'
+    Purple = '#ce39f9'; Yellow = '#f3ff13'; Cream  = '#ffff80'; Red    = '#ff0000'
+    Ink    = '#1C1B26'; Panel  = '#2a2840'; Line   = '#3b3955'; Text   = '#d0cfe0'
+}
+
+# fzf accent for one popup: each shortcut gets its own prompt color, everything else comes from fzf.conf.
+function Get-RabbitFzfTheme {
+    param([ValidateSet('Mint', 'Cyan', 'Green', 'Pink', 'Purple', 'Yellow')][string]$Accent = 'Mint')
+    $c = $global:RabbitPalette[$Accent]
+    "--color=border:$c,label:$c,prompt:$c,scrollbar:$c"
+}
+
+# ---------------------------------------------------------
 # Modules - import only what has to be loaded up front.
 # BurntToast, PSEverything and PSWriteColor are left to PowerShell's
 # autoloading: they load the first time one of their commands is used.
@@ -146,7 +164,7 @@ if ($RabbitHasReadLine) {
             }
 
             $previewCmd = if (Get-Command bat -ErrorAction SilentlyContinue) { 'bat --style=numbers --color=always {}' } else { 'type {}' }
-            $selected = $files | fzf --height 50% --layout reverse --border --preview $previewCmd
+            $selected = $files | fzf --height 50% --layout reverse --border --border-label ' 🔎 files ' --preview $previewCmd (Get-RabbitFzfTheme -Accent Mint)
 
             if ($selected) { [Microsoft.PowerShell.PSConsoleReadLine]::Insert($selected) }
         }
@@ -160,7 +178,7 @@ if ($RabbitHasReadLine) {
             }
 
             $previewCmd = if (Get-Command eza -ErrorAction SilentlyContinue) { 'eza --icons --group-directories-first {}' } else { 'dir {}' }
-            $selected = zoxide query -l | fzf --height 40% --layout reverse --border --preview $previewCmd
+            $selected = zoxide query -l | fzf --height 40% --layout reverse --border --border-label ' 🧭 jump ' --preview $previewCmd (Get-RabbitFzfTheme -Accent Purple)
 
             if ($selected) {
                 [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
@@ -180,6 +198,16 @@ if ($RabbitHasReadLine) {
             [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
             Invoke-CommandPalette
             [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
+        }
+
+        # Ctrl+h - what the shortcuts above do. (Ctrl+h used to be a second Backspace; Backspace itself is unchanged.)
+        Set-PSReadLineKeyHandler -Chord Ctrl+h -BriefDescription RabbitHelp -Description 'Show what the Rabbit shortcuts do' -ScriptBlock {
+            if (-not (Get-Command Show-RabbitHelp -ErrorAction SilentlyContinue)) {
+                Write-Host "`
+Show-RabbitHelp is not loaded - re-run the installer or reload the profile." -ForegroundColor Yellow
+            }
+            else { Show-RabbitHelp }
+            [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
         }
     }
     catch {
@@ -260,5 +288,5 @@ if (Test-Path -LiteralPath $RabbitLocal) {
     try { . $RabbitLocal } catch { Write-Warning "local profile failed: $($_.Exception.Message)" }
 }
 
-Write-Host "⚡ Ctrl+f File Search | Alt+Space Smart Jump | Ctrl+y Yazi | Ctrl+Space Command Palette" -ForegroundColor DarkGray
+Write-Host "⚡ Ctrl+f File Search | Alt+Space Smart Jump | Ctrl+y Yazi | Ctrl+Space Command Palette | Ctrl+h Help" -ForegroundColor DarkGray
 Write-RabbitTrace 'done'

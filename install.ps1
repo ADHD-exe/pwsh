@@ -7,7 +7,7 @@
            irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1 | iex
 
       2. With options (still one line):
-           & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1))) -Tier Core,Shell,Tools
+           & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1))) -Tier Core,Shell,Tools,Apps
 
       3. Download, read, then run (recommended the first time):
            irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1 -OutFile install.ps1
