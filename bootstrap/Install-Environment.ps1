@@ -21,7 +21,13 @@
     Machine (default, system PATH, needs a one-time UAC prompt) or User.
 
 .PARAMETER GitUser
-    GitHub username. If omitted you are asked once.
+    Git user.name. Only used when none is configured yet; if omitted you are asked.
+
+.PARAMETER GitEmail
+    Git user.email. Only used when none is configured yet; if omitted you are asked.
+
+.PARAMETER NoRelaunch
+    Do not continue (verification) in a newly opened terminal after PATH changes.
 
 .PARAMETER VerifyOnly
     Check every winget id in the manifest exists; install nothing.
@@ -44,6 +50,7 @@ param(
     [string]$PathScope = 'Machine',
 
     [string]$GitUser,
+    [string]$GitEmail,
     [string]$InstallDir = (Join-Path $HOME '.pwsh'),
     [string]$RepoUrl    = 'https://github.com/ADHD-exe/pwsh.git',
     [string]$Branch     = 'main',
@@ -56,9 +63,11 @@ param(
     [switch]$Unattended,
     [switch]$SkipSsh,
     [switch]$Elevate,
+    [switch]$NoRelaunch,
 
     # internal -------------------------------------------------------------
     [switch]$Relaunched,
+    [switch]$ResumeAfterPath,
     [switch]$AdminPathOnly,
     [string]$ResultFile
 )
@@ -84,6 +93,15 @@ foreach ($f in Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'steps') -Fil
 
 $stateDir = Join-Path $env:LOCALAPPDATA 'RabbitBootstrap'
 Initialize-Log -Directory (Join-Path $stateDir 'logs')
+
+# Continuing in a NEW terminal after the PATH step: this process only verifies, and it must see the
+# PATH that was just written (a child process inherits its parent's stale environment otherwise).
+if ($ResumeAfterPath) {
+    Update-SessionPath
+    $Only = @('verify')
+    Write-Host ''
+    Write-Host 'Continuing in a new terminal - PATH, fonts and profile are now in effect.' -ForegroundColor Cyan
+}
 
 function Test-RunStep { param([string]$Key) return (-not $Only) -or ($Only -contains $Key) }
 
@@ -163,7 +181,7 @@ try {
     elseif (Test-Path -LiteralPath (Join-Path $InstallDir 'profile')) { $script:RepoRoot = $InstallDir }
 
     # ---- interactive part first, so the long installs can run unattended ----
-    if (Test-RunStep 'git') { Invoke-Step -Name 'Git identity and GitHub SSH' -Action { Invoke-GitStep -GitUser $GitUser -Unattended:$Unattended -SkipSsh:$SkipSsh } }
+    if (Test-RunStep 'git') { Invoke-Step -Name 'Git identity and GitHub SSH' -Action { Invoke-GitStep -GitUser $GitUser -GitEmail $GitEmail -Unattended:$Unattended -SkipSsh:$SkipSsh } }
 
     if (Test-RunStep 'packages') {
         $rest = @($Tier | Where-Object { $_ -ne 'Core' })
@@ -186,7 +204,22 @@ try {
         }
     }
 
-    if (Test-RunStep 'verify') { Invoke-Step -Name 'Verification' -Action { Invoke-VerifyStep -RepoRoot $script:RepoRoot -Tier $tiersWithCore } }
+    if (Test-RunStep 'verify') {
+        $canHandOff = -not ($ResumeAfterPath -or $NoRelaunch -or $Unattended -or $WhatIfPreference -or $VerifyOnly) -and [Environment]::UserInteractive
+        $script:HandedOff = $false
+
+        if ($canHandOff) {
+            # Run the permanent copy: the temp folder this run started from is deleted when it exits.
+            $resumeScript = Join-Path $script:RepoRoot 'bootstrap\Install-Environment.ps1'
+            if (-not (Test-Path -LiteralPath $resumeScript)) { $resumeScript = $script:OrchestratorPath }
+            $resumeArgs = @('-ResumeAfterPath', '-InstallDir', $script:RepoRoot, '-Tier', ($Tier -join ','))
+            $script:HandedOff = Start-ResumeInNewTerminal -ScriptPath $resumeScript -Arguments $resumeArgs
+        }
+
+        if (-not $script:HandedOff) {
+            Invoke-Step -Name 'Verification' -Action { Invoke-VerifyStep -RepoRoot $script:RepoRoot -Tier $tiersWithCore }
+        }
+    }
 }
 catch {
     Write-Bad $_.Exception.Message
@@ -196,7 +229,20 @@ catch {
 Write-Summary
 
 Write-Host ''
-Write-Host 'Next: open a NEW Windows Terminal window (PATH, fonts and the profile are picked up on start).' -ForegroundColor Cyan
+if ($script:HandedOff) {
+    Write-Host 'The final check (verification) is continuing in the NEW terminal window that just opened. You can close this window.' -ForegroundColor Cyan
+}
+elseif ($ResumeAfterPath) {
+    Write-Host 'Setup complete. Starting your configured shell in this window (type exit to close it).' -ForegroundColor Cyan
+}
+else {
+    Write-Host 'Next: open a NEW Windows Terminal window (PATH, fonts and the profile are picked up on start).' -ForegroundColor Cyan
+}
 Write-Host "Re-run any time to repair or update. Backups sit next to each replaced file as NAME.bak-<timestamp>." -ForegroundColor DarkGray
 
-exit $(if (Get-FailedCount) { 1 } else { 0 })
+$code = $(if (Get-FailedCount) { 1 } else { 0 })
+
+# The resumed window ends in a normal interactive shell. PATH was refreshed above, so the profile sees every tool.
+if ($ResumeAfterPath) { & (Get-Process -Id $PID).Path -NoLogo }
+
+exit $code

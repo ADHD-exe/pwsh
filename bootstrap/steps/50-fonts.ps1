@@ -9,7 +9,9 @@ function Invoke-FontStep {
     $dir = Join-Path $RepoRoot 'settings\fonts'
 
     if (-not (Test-Path -LiteralPath $dir)) {
-        throw "Font folder missing from the repo: $dir"
+        Write-Warn "No bundled fonts: $dir is not in the repo. Install a Nerd Font manually (e.g. winget install DEVCOM.JetBrainsMonoNerdFont) or add the .ttf files to settings\fonts and re-run."
+        Add-Result -Step 'fonts' -Item 'Nerd Fonts' -Status 'Warn' -Detail 'settings\fonts missing from repo'
+        return
     }
 
     $fonts = @(Get-ChildItem -LiteralPath $dir -File | Where-Object { $_.Extension -in '.ttf', '.otf' })

@@ -1,0 +1,10 @@
+# Identity note: this repo is public, so no name or email is stored here.
+# deploy-configs.ps1 prompts for user.name and user.email on a machine that
+# doesn't have them set, and never overwrites an existing identity.
+[url "git@github.com:"]
+	insteadOf = https://github.com/
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
