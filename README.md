@@ -90,9 +90,8 @@ Read this before your first run.
   Windows Terminal window** so the new PATH, fonts and profile are in effect, finishes the
   verification there, and leaves you in your configured shell. You can close the first window.
   Use `-NoRelaunch` to stay in one window.
-- **Core, Shell and Tools install by default.** That includes Notepad++, AutoHotkey, Everything (plus its CLI and
-  taskbar toolbar), CMake, Python 3.14, PeaZip and Autoruns. Three of these (AutoHotkey, Everything,
-  EverythingToolbar) use machine-wide installers and raise their own UAC prompts; `-NoAdmin` skips them.
+- **Core, Shell and Tools install by default.** That includes Notepad++, AutoHotkey, Everything (plus its CLI), CMake, Python 3.14, PeaZip and Autoruns. Some of these (AutoHotkey, Everything,
+  Firefox Developer Edition) use machine-wide installers and raise their own UAC prompts; `-NoAdmin` skips them.
   Personal apps (Spotify, Discord client, OBS, ...) are the **Apps** tier and are opt-in with
   `-Tier Core,Shell,Tools,Apps`. Firewall/driver/tweaker tools are additionally skipped unless you pass `-IncludeRisky`.
   To install only the minimum, use `-Tier Core,Shell`.
@@ -173,7 +172,6 @@ A package that is already installed (command found on PATH or its usual install 
 | Firefox Developer Edition | `Mozilla.Firefox.DeveloperEdition` | `firefox` | Added to the system PATH; the profile defines `firefox` to launch it. Checked first, so an existing install is kept. Admin installer |
 | Everything | `voidtools.Everything` | — | Instant file search; config deployed. Admin installer |
 | Everything CLI | `voidtools.Everything.Cli` | `es` | Used by PSEverything and the profile |
-| EverythingToolbar | `srwi.EverythingToolbar` | — | Taskbar search. Admin installer |
 | CMake | `Kitware.CMake` | `cmake` | |
 | Python 3.14 | `Python.Python.3.14` | `python` | |
 | PeaZip | `Giorgiotani.Peazip` | — | Archive manager |
@@ -278,7 +276,6 @@ The installer does not add folders blindly. For each entry it skips it if the fo
 | `%ProgramFiles%\AutoHotkey` | AutoHotkey (Tools) |
 | `%ProgramFiles%\Autoruns` | Autoruns (Tools) |
 | `%ProgramFiles%\Everything` | Everything (Tools) |
-| `%ProgramFiles%\EverythingToolbar` | EverythingToolbar (Tools) |
 | `%ProgramFiles%\Firefox Developer Edition` | Firefox Developer Edition (Tools) |
 | `%ProgramFiles%\Git\cmd` | Git (Core) |
 | `%ProgramFiles%\Go\bin` | Go (not installed by this repo; added only if present) |

@@ -50,7 +50,6 @@
         @{ Tier = 'Tools'; Name = 'AutoHotkey v2'; Id = 'AutoHotkey.AutoHotkey'; Command = '';          Paths = @('%ProgramFiles%\AutoHotkey\v2\AutoHotkey64.exe', '%ProgramFiles%\AutoHotkey\AutoHotkey.exe'); Admin = $true }
         @{ Tier = 'Tools'; Name = 'Everything';  Id = 'voidtools.Everything';   Command = '';          Paths = @('%ProgramFiles%\Everything\Everything.exe'); Admin = $true }
         @{ Tier = 'Tools'; Name = 'Everything CLI (es)'; Id = 'voidtools.Everything.Cli'; Command = 'es'; Paths = @('%ProgramFiles%\Everything\es.exe', '%LOCALAPPDATA%\Microsoft\WinGet\Links\es.exe'); Note = 'PSEverything and the profile use es' }
-        @{ Tier = 'Tools'; Name = 'EverythingToolbar'; Id = 'srwi.EverythingToolbar'; Command = '';    Paths = @('%ProgramFiles%\EverythingToolbar'); Admin = $true; Note = 'draft listed .Launcher and .Deskband; verify which id exists' }
         @{ Tier = 'Tools'; Name = 'CMake';       Id = 'Kitware.CMake';           Command = 'cmake';  Paths = @('%ProgramFiles%\CMake\bin\cmake.exe') }
         @{ Tier = 'Tools'; Name = 'Python 3.14'; Id = 'Python.Python.3.14';      Command = 'python'; Paths = @('%LOCALAPPDATA%\Programs\Python\Python314\python.exe', '%LOCALAPPDATA%\Programs\Python\Launcher\py.exe') }
         # Command stays empty on purpose: a regular Firefox on PATH must not count as "Developer Edition is installed".

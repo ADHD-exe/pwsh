@@ -1,3 +1,12 @@
+# Progress report (checkpoint 15, in progress)
+Static edits only; no PowerShell in this sandbox, nothing run - please test.
+15a. EverythingToolbar removed (it failed to install on a fresh system): packages.psd1 entry, path.psd1 entry, README rows/mentions.
+     Everything and Everything CLI (es) are unchanged.
+(More steps below are added as they are finished; each one is shipped as its own zip.)
+
+---
+(Previous report follows)
+
 # Progress report (checkpoint 14)
 Ctrl+F now always lists files in the current directory and below (fd, hidden files included, .gitignore and .git honoured),
 including inside git repos; it no longer switches to `git ls-files`. Help page 01 updated. Static edit only, not run.
