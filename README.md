@@ -42,11 +42,10 @@ Syncthing, SyncTrayzor, Spicetify, BetterTrumpet, RDCMan, and Bulk Crap Uninstal
 Starship is optional and is not used by the profile (which uses Oh My Posh).
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1))) -Tier Core,Shell,Tools,Apps
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1))) -Tier Core,Shell,Tools,Apps -IncludeRisky
 ```
 
-The four risky Apps—simplewall, Winaero Tweaker, DISMTools, and NVCleanstall—are
-excluded from both choices unless you explicitly add `-IncludeRisky`.
+This also installs simplewall, Winaero Tweaker, DISMTools, and NVCleanstall.
 
 ### Safer: download, read, then run
 
