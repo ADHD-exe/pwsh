@@ -367,12 +367,15 @@ Open a new terminal. The repo profile (`profile\`) loads from `~\.pwsh`; update 
 - Profile: `ep` / `profile` edit it, `reload` / `rl` reload it, `mkcmd` creates your own alias or function.
 - Machine-local additions go in `Documents\PowerShell\Microsoft.PowerShell_profile.local.ps1` so `git pull` never overwrites them.
 - A **toast notification and terminal bell** fire when a command that ran 8 seconds or longer finishes.
+- `open [path]` opens a folder in File Explorer (or selects a file); `keybinds` lists the AutoHotkey shortcuts in the deployed script.
+- `clr-history` clears Atuin and PowerShell history (asks first; `-Force` skips the prompt).
 
 **AutoHotkey shortcuts** (only if you said yes to the keybinds prompt; `settings\autohotkey\keybinds.ahk`):
 `Win+Enter` PowerShell 7, `Win+B` Firefox Developer Edition, `Win+N` Notepad++, `Win+F` Explorer, `Win+M` Microsoft Store,
 `Win+Q` close window, `Win+PgUp/PgDn` maximise/minimise, plus Mac-style `Win+C/V/X/Z` copy/paste/cut/undo.
 A launcher key is only created when its program exists on the PC (Windows' own programs, or the ones this installer
 installs), so no key ever points at something missing. Reload the script after installing a program later.
+Type `keybinds` to list the shortcuts currently defined in the script.
 
 ---
 

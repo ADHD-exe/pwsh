@@ -95,6 +95,7 @@ function qol {
             "Port",    "Find who's using a port: Port 8080"
             "Admin",   "Launch elevated pwsh"
             "rsex",    "Restart Explorer"
+            "open",    "Open the current folder (or a path) in File Explorer: open [path]"
             "reboot",  "Reboot machine"
         )
         "Web" = @(
@@ -131,6 +132,7 @@ function qol {
             "theme", "Edit oh-my-posh theme"
             "forget", "Remove pattern from history"
             "clr-history", "Clear Atuin + PowerShell history"
+            "keybinds", "List the AutoHotkey Windows shortcuts"
         )
     }
 
@@ -807,3 +809,114 @@ function Show-RabbitHelp {
 }
 
 Set-Alias keys Show-RabbitHelp
+
+# =========================================================
+# open  -  show a folder in File Explorer, or select a file
+# =========================================================
+function Open-Explorer {
+    [CmdletBinding()]
+    param([Parameter(Position = 0)][string]$Path = '.')
+
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item -or $item.PSProvider.Name -ne 'FileSystem') {
+        Write-Warning "open: not a file or folder: $Path"
+        return
+    }
+
+    $arg = if ($item.PSIsContainer) { "`"$($item.FullName)`"" } else { "/select,`"$($item.FullName)`"" }
+    Start-Process -FilePath explorer.exe -ArgumentList $arg
+}
+
+Set-Alias open Open-Explorer
+
+# =========================================================
+# keybinds  -  list the AutoHotkey shortcuts
+# =========================================================
+function Get-RabbitAhkKeybinds {
+    [CmdletBinding()]
+    param([string]$Path)
+
+    if (-not $Path) {
+        $deployed = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'AutoHotkey\keybinds.ahk'
+        $repo     = if ($global:RabbitSettings) { Join-Path $global:RabbitSettings 'autohotkey\keybinds.ahk' } else { '' }
+        $Path     = @($deployed, $repo) | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+    }
+    if (-not $Path) { return }
+    if (-not (Test-Path -LiteralPath $Path)) {
+        Write-Warning "keybinds: script not found: $Path"
+        return
+    }
+
+    $mods = [ordered]@{ '#' = 'Win'; '^' = 'Ctrl'; '!' = 'Alt'; '+' = 'Shift' }
+    $toKey = {
+        param([string]$raw)
+        $parts = foreach ($m in $mods.Keys) { if ($raw.Contains($m)) { $mods[$m] } }
+        $name = $raw -replace '[\^!+#*~$<>]', ''
+        if ($name.Length -eq 1) { $name = $name.ToUpper() }
+        (@($parts) + $name) -join '+'
+    }
+    $short = { param([string]$text) ($text -replace '(\.\s.*|;.*|\s\(.*)$', '').Trim().TrimEnd('.') }
+
+    $group = 'Other'; $inHeader = $false; $needGroup = $false
+    $comment = ''; $inComment = $false
+
+    foreach ($line in (Get-Content -LiteralPath $Path -Encoding UTF8)) {
+        $t = $line.Trim()
+
+        if ($t -match '^;\s*={5,}') { $inHeader = -not $inHeader; $needGroup = $inHeader; $comment = ''; $inComment = $false; continue }
+        if ($t -match '^;\s*(?<text>.*)$') {
+            $text = $Matches.text.Trim()
+            if ($inHeader) {
+                if ($needGroup -and $text) { $group = & $short $text; $needGroup = $false }
+            }
+            elseif ($text -and -not $inComment) { $comment = $text; $inComment = $true }
+            continue
+        }
+        if (-not $t) { $comment = ''; $inComment = $false; continue }
+
+        $key = $null; $does = ''
+        if ($t -match '^(LaunchFile|Hotkey)\(\s*"(?<k>[^"]+)"') {
+            $key = $Matches.k; $does = & $short $comment
+        }
+        elseif ($t -match '^(?<k>[#!^+*~$<>]*[A-Za-z0-9]+)::\s*(?<a>.*?)\s*(;\s*(?<c>.*))?$') {
+            $key = $Matches.k
+            $does = if ($Matches.c) { & $short $Matches.c } else { $Matches.a }
+        }
+        if ($key) {
+            [pscustomobject]@{ Group = $group; Key = (& $toKey $key); Does = $does; Source = $Path }
+            $comment = ''; $inComment = $false
+        }
+    }
+}
+
+function Show-RabbitKeybinds {
+    [CmdletBinding()]
+    param([string]$Path, [switch]$Raw)
+
+    $binds = @(Get-RabbitAhkKeybinds -Path $Path)
+    if ($Raw) { return $binds }
+    if ($binds.Count -eq 0) {
+        Write-Warning 'No AutoHotkey keybinds found - the script is deployed to Documents\AutoHotkey only if you said yes to the keybinds prompt.'
+        return
+    }
+
+    Write-Host ''
+    Write-Host 'AutoHotkey keybinds' -ForegroundColor Cyan -NoNewline
+    Write-Host "  ($($binds[0].Source))" -ForegroundColor DarkGray
+    if (-not (Get-Process -Name 'AutoHotkey*' -ErrorAction SilentlyContinue)) {
+        Write-Host 'AutoHotkey is not running right now - these keys will not work until it is started.' -ForegroundColor Yellow
+    }
+
+    $width = ($binds.Key | Measure-Object -Property Length -Maximum).Maximum
+    foreach ($g in ($binds | Group-Object Group)) {
+        Write-Host ''
+        Write-Host $g.Name -ForegroundColor Magenta
+        foreach ($b in $g.Group) {
+            Write-Host ('  {0}  ' -f $b.Key.PadRight($width)) -ForegroundColor Green -NoNewline
+            Write-Host $b.Does
+        }
+    }
+    Write-Host ''
+}
+
+Set-Alias keybinds Show-RabbitKeybinds

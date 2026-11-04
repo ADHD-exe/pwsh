@@ -1,3 +1,12 @@
+# Progress report (checkpoint 20, open + keybinds commands)
+20a. Added `open` to show a folder in File Explorer or select a file.
+20b. Added `keybinds` to parse and display the deployed AutoHotkey shortcuts by group; `keybinds -Raw` returns objects.
+20c. Updated `qol` and README command help.
+20d. Verified the parser against `settings\autohotkey\keybinds.ahk` (16 shortcuts) and tested the commands with `tests\Test-UserCommands.ps1`.
+
+---
+(Previous report follows)
+
 # Progress report (checkpoint 19, structure + palette + key self-check)
 Static edits only; no PowerShell in this sandbox, nothing run - please test.
 19a. Verified upload = checkpoint 18 (17f content present). gs/gp/gl (aliases-git.ps1), home/dl/docs/desk, Edit-Profile, Reload-Profile all exist.
