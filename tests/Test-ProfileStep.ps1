@@ -14,6 +14,7 @@ $sandbox = Join-Path ([IO.Path]::GetTempPath()) ("profiletest-" + [guid]::NewGui
 New-Item -ItemType Directory -Path $sandbox | Out-Null
 $env:HOME = $sandbox; $env:USERPROFILE = $sandbox
 Set-Variable -Name HOME -Value $sandbox -Force -Scope Global -ErrorAction SilentlyContinue
+function Get-Pwsh7ProfileDirectory { Join-Path $env:HOME 'Documents\PowerShell' }
 
 # fake install dir containing the repo profile
 $installDir = Join-Path $sandbox '.pwsh'
