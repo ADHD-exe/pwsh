@@ -130,6 +130,7 @@ function qol {
             "al",    "Edit aliases.ps1"
             "theme", "Edit oh-my-posh theme"
             "forget", "Remove pattern from history"
+            "clr-history", "Clear Atuin + PowerShell history"
         )
     }
 

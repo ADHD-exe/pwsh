@@ -1,3 +1,14 @@
+# Progress report (checkpoint 16, merge of .pwsh and Documents\PowerShell)
+Static edits only; nothing run - please test.
+16a. Added profile/aliases-functions-keybinds/clear-history.ps1 (clr-history) from the local clone; Ctrl+H/help list entry added in functions.ps1.
+16b. Added docs/Windows-Settings-Restore-Snippets.txt (reg snippets from the local clone).
+16c. Added templates/Microsoft.PowerShell_profile.local.ps1 with personal shortcuts (pics, github, music, vault); the broken local copies had a typo (Set-Locatio) and a duplicate github.
+16d. Added tools/Remove-LegacyPowerShell.ps1 (dry run by default; backs up to a zip before removing dead files in Documents\PowerShell).
+Not carried over: choco aliases (repo uses winget), old fzf-config module, old copies of settings and scripts (the repo versions are newer).
+
+---
+(Previous report follows)
+
 # Progress report (checkpoint 15, in progress)
 Static edits only; no PowerShell in this sandbox, nothing run - please test.
 15a. EverythingToolbar removed (it failed to install on a fresh system): packages.psd1 entry, path.psd1 entry, README rows/mentions.
