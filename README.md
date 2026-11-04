@@ -1,3 +1,4 @@
+<img width="1216" height="716" alt="WindowsTerminalScreenShot" src="https://github.com/user-attachments/assets/0dce8721-75db-4cae-9221-92ce166af388" />
 # pwsh — one-command Windows terminal environment
 
 Turns a fresh Windows install into a complete working shell: PowerShell 7, Windows Terminal,
