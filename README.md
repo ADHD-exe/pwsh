@@ -1,5 +1,4 @@
 # pwsh — one-command Windows terminal environment
-<img width="1216" height="716" alt="WindowsTerminalScreenShot" src="https://github.com/user-attachments/assets/32446f97-73e2-4a93-a752-6f157914910f" />
 
 Turns a fresh Windows install into a complete working shell: PowerShell 7, Windows Terminal,
 the `oh-my-rabbit` Oh My Posh theme, Nerd Fonts, a modular PowerShell profile, a modern
@@ -337,9 +336,9 @@ Open a new terminal. The repo profile (`profile\`) loads from `~\.pwsh`; update 
 
 | Keys | Does |
 |---|---|
-| `Ctrl+f` | Fuzzy file search (git files inside a repo, `fd` elsewhere) |
+| `Ctrl+f` | Fuzzy file search below the current folder (`fd`; Tab = several files, `Ctrl+G` includes git-ignored files) |
 | `Alt+Space` | Jump to a directory zoxide knows |
-| `Ctrl+y` | Yazi file manager; the shell `cd`s to where you leave it |
+| `Ctrl+y` | Explore: Yazi file manager; the shell `cd`s to where you leave it |
 | `Ctrl+Space` | Command palette |
 | `Ctrl+r` / `Up` | Atuin history search |
 | `Ctrl+t` | Insert file path(s) with fzf |

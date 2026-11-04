@@ -155,64 +155,7 @@ if ($RabbitHasReadLine) {
         Set-PSReadLineKeyHandler -Chord 'Ctrl+UpArrow'   -Function HistorySearchBackward
         Set-PSReadLineKeyHandler -Chord 'Ctrl+DownArrow' -Function HistorySearchForward
         Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
-
-        # Ctrl+f - fuzzy file search, always in the current directory (fd; honours .gitignore)
-        Set-PSReadLineKeyHandler -Chord Ctrl+f -ScriptBlock {
-            if (-not ((Get-Command fzf -ErrorAction SilentlyContinue) -and (Get-Command fd -ErrorAction SilentlyContinue))) {
-                Write-Host "`nCtrl+f needs fzf and fd - re-run the installer to add them." -ForegroundColor Yellow
-                [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
-                return
-            }
-
-            # Current directory and below, relative paths, every time (inside a git repo too).
-            $files = fd --type file --hidden --exclude .git
-
-            $previewCmd = if (Get-Command bat -ErrorAction SilentlyContinue) { 'bat --style=numbers --color=always {}' } else { 'type {}' }
-            $selected = $files | fzf --height 50% --layout reverse --border --border-label ' 🔎 files ' --preview $previewCmd (Get-RabbitFzfTheme -Accent Mint)
-
-            if ($selected) { [Microsoft.PowerShell.PSConsoleReadLine]::Insert($selected) }
-        }
-
-        # Alt+Space - jump to a directory zoxide knows
-        Set-PSReadLineKeyHandler -Chord Alt+Spacebar -ScriptBlock {
-            if (-not ((Get-Command zoxide -ErrorAction SilentlyContinue) -and (Get-Command fzf -ErrorAction SilentlyContinue))) {
-                Write-Host "`nAlt+Space needs zoxide and fzf - re-run the installer to add them." -ForegroundColor Yellow
-                [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
-                return
-            }
-
-            $previewCmd = if (Get-Command eza -ErrorAction SilentlyContinue) { 'eza --icons --group-directories-first {}' } else { 'dir {}' }
-            $selected = zoxide query -l | fzf --height 40% --layout reverse --border --border-label ' 🧭 jump ' --preview $previewCmd (Get-RabbitFzfTheme -Accent Purple)
-
-            if ($selected) {
-                [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-                Set-Location $selected
-                [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-            }
-        }
-
-        # Ctrl+y - yazi, and cd to wherever you leave it
-        Set-PSReadLineKeyHandler -Chord Ctrl+y -ScriptBlock {
-            [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-            yy
-            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-        }
-
-        Set-PSReadLineKeyHandler -Key Ctrl+Spacebar -ScriptBlock {
-            [Microsoft.PowerShell.PSConsoleReadLine]::RevertLine()
-            Invoke-CommandPalette
-            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-        }
-
-        # Ctrl+h - what the shortcuts above do. (Ctrl+h used to be a second Backspace; Backspace itself is unchanged.)
-        Set-PSReadLineKeyHandler -Chord Ctrl+h -BriefDescription RabbitHelp -Description 'Show what the Rabbit shortcuts do' -ScriptBlock {
-            if (-not (Get-Command Show-RabbitHelp -ErrorAction SilentlyContinue)) {
-                Write-Host "`
-Show-RabbitHelp is not loaded - re-run the installer or reload the profile." -ForegroundColor Yellow
-            }
-            else { Show-RabbitHelp }
-            [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
-        }
+        # Ctrl+f, Alt+Space, Ctrl+y, Ctrl+Space and Ctrl+h live in aliases-functions-keybinds\keybinds.ps1.
     }
     catch {
         Write-Warning "PSReadLine setup was skipped: $($_.Exception.Message)"
@@ -227,16 +170,16 @@ function yy {
     }
 
     $tmp = [System.IO.Path]::GetTempFileName()
+    try {
+        yazi $PWD --cwd-file="$tmp"
 
-    yazi $PWD --cwd-file="$tmp"
-
-    if (Test-Path $tmp) {
-        $cwd = Get-Content -Path $tmp -ErrorAction SilentlyContinue
-
-        if ($cwd -and (Test-Path $cwd)) { Set-Location $cwd }
-
-        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        # Yazi writes the folder as UTF-8; read it as such so accented names survive.
+        $cwd = Get-Content -LiteralPath $tmp -Encoding UTF8 -TotalCount 1 -ErrorAction SilentlyContinue
+        if ($cwd -and (Test-Path -LiteralPath $cwd -PathType Container) -and ($cwd -ne $PWD.Path)) {
+            Set-Location -LiteralPath $cwd
+        }
     }
+    finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
 }
 
 # ---------------------------------------------------------
@@ -292,5 +235,5 @@ if (Test-Path -LiteralPath $RabbitLocal) {
     try { . $RabbitLocal } catch { Write-Warning "local profile failed: $($_.Exception.Message)" }
 }
 
-Write-Host "⚡ Ctrl+f File Search | Alt+Space Smart Jump | Ctrl+y Yazi | Ctrl+Space Command Palette | Ctrl+h Help" -ForegroundColor DarkGray
+Write-Host "⚡ Ctrl+f File Search | Alt+Space Smart Jump | Ctrl+y Explore | Ctrl+Space Command Palette | Ctrl+h Help" -ForegroundColor DarkGray
 Write-RabbitTrace 'done'

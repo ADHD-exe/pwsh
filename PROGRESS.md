@@ -1,3 +1,30 @@
+# Progress report (checkpoint 19, structure + palette + key self-check)
+Static edits only; no PowerShell in this sandbox, nothing run - please test.
+19a. Verified upload = checkpoint 18 (17f content present). gs/gp/gl (aliases-git.ps1), home/dl/docs/desk, Edit-Profile, Reload-Profile all exist.
+19b. Ctrl+F/Alt+Space/Ctrl+Y/Ctrl+Space/Ctrl+H code moved from Microsoft.PowerShell_profile.ps1 into aliases-functions-keybinds/keybinds.ps1 (helpers Register-RabbitKey, Test-RabbitTools, ConvertTo-RabbitArgument moved with it).
+19c. New Test-RabbitKeys: shows per key whether it is bound and whether its tools/functions exist.
+19d. Invoke-CommandPalette is data-driven (label/needs/run table); entries whose command is missing are hidden; UTF-8 for fzf.
+19e. Test-RabbitKeys: fixed string-concatenation bug for single tool + function (Ctrl+Y row), key names matched case-insensitively with Space/Spacebar normalised.
+Still to test: all keys in a real console; Test-RabbitKeys key-name matching (Alt+Spacebar/Ctrl+Spacebar); palette output redraw; Alt+Space vs Windows Terminal.
+Not done: Windows Terminal Alt+Space check (needs your machine).
+
+---
+(Previous report follows)
+
+# Progress report (checkpoint 17, key-handler fixes)
+Static edits only; no PowerShell in this sandbox, nothing run - please test.
+17a. Ctrl+F: paths with spaces/specials are quoted; Tab multi-selects; fd streams into fzf (no wait on big trees); UTF-8 I/O; adds a space after a word at the cursor; Esc leaves the line alone.
+17b. Alt+Space / Ctrl+Y / Ctrl+Space: the typed line is no longer thrown away (InvokePrompt instead of RevertLine+AcceptLine).
+17c. yy: UTF-8, -LiteralPath, temp file always removed, only cd's to an existing folder.
+17d. Ctrl+Space: fzf guard in Invoke-CommandPalette, Esc handled, load check.
+17e. Every key is registered through Register-RabbitKey (own try/catch + description); shared Test-RabbitTools preflight. Help page 01 updated.
+17f. Ctrl+Y is now labelled "Explore" (banner, key description, palette, help, README); `yy` and Yazi itself unchanged. Ctrl+F: Ctrl+G includes git-ignored files, Ctrl+T goes back (fzf reload).
+Still to test: Ctrl+F with a spaced filename and Tab multi-select; Alt+Space/Ctrl+Y/Ctrl+Space with text already typed; palette actions that print output.
+Not done: Alt+Space vs Windows Terminal (settings.json lists alt+space as unbound - confirm on your machine); fzf reload toggle for ignored files.
+
+---
+(Previous report follows)
+
 # Progress report (checkpoint 16, merge of .pwsh and Documents\PowerShell)
 Static edits only; nothing run - please test.
 16a. Added profile/aliases-functions-keybinds/clear-history.ps1 (clr-history) from the local clone; Ctrl+H/help list entry added in functions.ps1.

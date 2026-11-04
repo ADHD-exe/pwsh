@@ -25,12 +25,6 @@ function mkcd {
     Set-Location $Dir
 }
 
-function open {
-    param([Parameter(Position = 0)][string]$Path = ".")
-    if (-not (Test-Path -LiteralPath $Path)) { Write-Warning "Not found: $Path"; return }
-    Start-Process explorer.exe -ArgumentList (Resolve-Path -LiteralPath $Path).Path
-}
-
 # All four are eza in different view modes. They're functions rather than
 # aliases so they can take a path and extra flags: `ls src`, `la -s size`.
 function ls { eza --icons --group-directories-first @args }
@@ -54,8 +48,7 @@ function nav {
         "projects", "Go to Projects"
         "rc",   "Go to Recycle Bin"
         "mkcd", "Create a directory and cd into it: mkcd newdir"
-        "open", "Open a folder in Explorer (cwd if none)"
-        "yy",   "Open yazi file manager (cd on exit)"
+        "yy",   "Explore files with Yazi (cd on exit)"
     )
 
     Write-Host "Navigation Commands" -ForegroundColor Cyan
@@ -533,46 +526,49 @@ function man {
 
 function Invoke-CommandPalette {
 
-    $commands = @(
-        "⚡ Edit Profile"
-        "📦 Reload Profile"
-        "🌳 Git Status"
-        "🚀 Git Push"
-        "📥 Git Pull"
-        "🗂️ Yazi"
-        "❓ Help (Ctrl+h)"
-        "🏠 Home"
-        "📁 Downloads"
-        "📄 Documents"
-        "🖥️ Desktop"
-    )
+    if (-not (Get-Command fzf -ErrorAction SilentlyContinue)) {
+        Write-Warning 'The command palette needs fzf - re-run the installer to add it.'
+        return
+    }
+
+    # Data-driven: add a row to change the menu. An entry is hidden when the command it needs is not defined.
+    $items = @(
+        @{ Label = '⚡ Edit Profile';        Needs = 'Edit-Profile';   Run = { Edit-Profile } }
+        @{ Label = '📦 Reload Profile';      Needs = 'Reload-Profile'; Run = { Reload-Profile } }
+        @{ Label = '🌳 Git Status';          Needs = 'gs';             Run = { gs } }
+        @{ Label = '🚀 Git Push';            Needs = 'gp';             Run = { gp } }
+        @{ Label = '📥 Git Pull';            Needs = 'gl';             Run = { gl } }
+        @{ Label = '🗂️ Explore (Ctrl+y)';    Needs = 'yy';             Run = { yy } }
+        @{ Label = '❓ Help (Ctrl+h)';       Needs = 'Show-RabbitHelp'; Run = { Show-RabbitHelp } }
+        @{ Label = '🏠 Home';                Needs = 'home';           Run = { home } }
+        @{ Label = '📁 Downloads';           Needs = 'dl';             Run = { dl } }
+        @{ Label = '📄 Documents';           Needs = 'docs';           Run = { docs } }
+        @{ Label = '🖥️ Desktop';             Needs = 'desk';           Run = { desk } }
+    ) | Where-Object { Get-Command $_.Needs -ErrorAction SilentlyContinue }
+
+    if (-not $items) { Write-Warning 'The command palette has no usable actions.'; return }
 
     $theme = if (Get-Command Get-RabbitFzfTheme -ErrorAction SilentlyContinue) { Get-RabbitFzfTheme -Accent Pink } else { '--color=prompt:#ff42a0' }
 
-    $selection = $commands |
-        fzf `
-            --height 40% `
-            --layout reverse `
-            --border `
-            --border-label " 🚀 palette " `
-            --prompt "⚡ Rabbit Command Palette > " `
-            --header "Modern PowerShell Toolkit" `
-            $theme
-
-    switch ($selection) {
-
-        "⚡ Edit Profile" { Edit-Profile }
-        "📦 Reload Profile" { Reload-Profile }
-        "🌳 Git Status" { gs }
-        "🚀 Git Push" { gp }
-        "📥 Git Pull" { gl }
-        "🗂️ Yazi" { yy }
-        "❓ Help (Ctrl+h)" { Show-RabbitHelp }
-        "🏠 Home" { home }
-        "📁 Downloads" { dl }
-        "📄 Documents" { docs }
-        "🖥️ Desktop" { desk }
+    $oldEnc = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)   # emoji labels must round-trip through fzf
+        $selection = $items.Label |
+            fzf `
+                --height 40% `
+                --layout reverse `
+                --border `
+                --border-label " 🚀 palette " `
+                --prompt "⚡ Rabbit Command Palette > " `
+                --header "Modern PowerShell Toolkit" `
+                $theme
     }
+    finally { [Console]::OutputEncoding = $oldEnc }
+
+    if (-not $selection) { return }   # Esc
+
+    $item = $items | Where-Object { $_.Label -eq $selection } | Select-Object -First 1
+    if ($item) { & $item.Run }
 }
 
 # =========================================================
@@ -592,7 +588,7 @@ function Get-RabbitHelpTopics {
 ## At the prompt
 - [Ctrl+F]       find a file and drop its path on your command line
 - [Alt+Space]    jump to a folder you have used before
-- [Ctrl+Y]       open the Yazi file manager (the shell follows you out)
+- [Ctrl+Y]       explore files (Yazi file manager; the shell follows you out)
 - [Ctrl+Space]   command palette - a short menu of handy actions
 - [Ctrl+R] or [Up]   search your whole command history (Atuin)
 - [Ctrl+H]       this help
@@ -624,6 +620,8 @@ It does not open or run anything - you decide what to do with it.
 ## Try it
 - type `nvim ` then press [Ctrl+F], pick a file, press [Enter]
   your line now reads `nvim path\to\file` - press [Enter] again to run it
+- [Tab] marks several files at once; they are all added to the line
+- names with spaces are quoted for you
 - you do not need exact names: `prof ps1` finds `Microsoft.PowerShell_profile.ps1`
 
 ## Filtering tricks
@@ -632,6 +630,7 @@ It does not open or run anything - you decide what to do with it.
 - `word$`  must end with it        `!word`  must NOT contain it
 
 ## Good to know
+- [Ctrl+G] also lists files your .gitignore hides; [Ctrl+T] goes back
 - [Esc] cancels and leaves your line alone
 - needs fzf and fd (the installer adds both)
 - looking for a file anywhere on C:?  use `ff name` instead
@@ -657,11 +656,11 @@ machine has an empty list - it fills up as you work, so give it a day.
 - needs zoxide and fzf (the installer adds both)
 - jump to a folder you have NEVER been in:  `cdf name`  (searches all of C:)
 '@
-        '03 🗂️ Ctrl+Y - Yazi file manager' = @'
-# Ctrl+Y  -  Yazi
+        '03 🗂️ Ctrl+Y - explore files' = @'
+# Ctrl+Y  -  Explore
 
 ## What it does
-Opens Yazi, a full-screen file manager in the terminal: three columns -
+Opens Yazi (the Explore tool), a full-screen file manager in the terminal: three columns -
 parent folder, current folder, and a preview of what is under the cursor.
 When you quit, your shell lands in the folder you were looking at.
 (Typing `yy` does the same thing.)
@@ -768,7 +767,7 @@ function ConvertTo-RabbitHelpText {
 function Show-RabbitHelp {
     <#
     .SYNOPSIS
-        Ctrl+h help launcher: what Ctrl+F, Alt+Space, Ctrl+Y and Ctrl+Space do.
+        Ctrl+h help launcher: what Ctrl+F, Alt+Space, Ctrl+Y (Explore) and Ctrl+Space do.
     .DESCRIPTION
         Opens a themed fzf list of topics with a live preview. Enter prints the
         highlighted page into the terminal. Without fzf, prints every page.
