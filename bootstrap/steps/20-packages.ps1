@@ -6,6 +6,7 @@ function Get-SelectedPackages {
     param([string[]]$Tier, [switch]$IncludeRisky, [switch]$NoAdmin, [string[]]$ExcludeId)
 
     $all = (Import-PowerShellDataFile -LiteralPath (Join-Path $script:ManifestDir 'packages.psd1')).Packages
+    $installRisky = $IncludeRisky -or ($Tier -contains 'Apps')
 
     foreach ($p in $all) {
         if ($Tier -notcontains $p.Tier) { continue }
@@ -16,9 +17,9 @@ function Get-SelectedPackages {
             continue
         }
 
-        if ($p.Risky -and -not $IncludeRisky) {
-            Add-Result -Step 'packages' -Item $p.Name -Status 'Skipped' -Detail 'risky package - pass -IncludeRisky to install'
-            Write-Dim "$($p.Name): skipped (risky, needs -IncludeRisky)"
+        if ($p.Risky -and -not $installRisky) {
+            Add-Result -Step 'packages' -Item $p.Name -Status 'Skipped' -Detail 'risky package - select the Apps tier or pass -IncludeRisky to install'
+            Write-Dim "$($p.Name): skipped (risky, select the Apps tier to include all Apps)"
             continue
         }
 

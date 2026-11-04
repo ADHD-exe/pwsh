@@ -42,10 +42,11 @@ Syncthing, SyncTrayzor, Spicetify, BetterTrumpet, RDCMan, and Bulk Crap Uninstal
 Starship is optional and is not used by the profile (which uses Oh My Posh).
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1))) -Tier Core,Shell,Tools,Apps -IncludeRisky
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1))) -Tier Core,Shell,Tools,Apps
 ```
 
-This also installs simplewall, Winaero Tweaker, DISMTools, and NVCleanstall.
+This installs every package in the Apps tier, including simplewall, Winaero Tweaker,
+DISMTools, and NVCleanstall.
 
 ### Safer: download, read, then run
 
@@ -108,7 +109,8 @@ Read this before your first run.
 - **Core, Shell and Tools install by default.** That includes Notepad++, AutoHotkey, Everything (plus its CLI), CMake, Python 3.14, PeaZip and Autoruns. Some of these (AutoHotkey, Everything,
   Firefox Developer Edition) use machine-wide installers and raise their own UAC prompts; `-NoAdmin` skips them.
   Personal apps (Spotify, Discord client, OBS, ...) are the **Apps** tier and are opt-in with
-  `-Tier Core,Shell,Tools,Apps`. Firewall/driver/tweaker tools are additionally skipped unless you pass `-IncludeRisky`.
+  `-Tier Core,Shell,Tools,Apps`. Selecting Apps opts into all packages in that tier, including the firewall,
+  driver, and tweaker tools listed below.
   To install only the minimum, use `-Tier Core,Shell`.
 - **Open apps keep the old PATH and fonts.** Restart apps that were already running (for example
   Notepad++) to see new fonts, and open a new terminal to pick up PATH changes.
@@ -221,7 +223,7 @@ Personal desktop apps. Nothing here is needed by the shell.
 | RDCMan | `Microsoft.Sysinternals.RDCMan` |
 | Bulk Crap Uninstaller | `Klocman.BulkCrapUninstaller` |
 
-**Risky — skipped unless you also pass `-IncludeRisky`:** simplewall (`Henry++.simplewall`, a host firewall that
+**Apps flagged for extra care** (included when you select the Apps tier): simplewall (`Henry++.simplewall`, a host firewall that
 blocks traffic until configured), Winaero Tweaker (`winaero.tweaker`), DISMTools
 (`CodingWondersSoftware.DISMTools.Stable`) and NVCleanstall (`TechPowerUp.NVCleanstall`, an NVIDIA driver installer).
 
@@ -407,7 +409,7 @@ Type `keybinds` to list the shortcuts currently defined in the script.
 | `-RepoUrl`, `-Branch` | Use a fork or another branch |
 | `-WhatIf` | Dry run: show what would happen |
 | `-VerifyOnly` | Only check that every winget id exists |
-| `-IncludeRisky` | Also install the Risky Apps (firewall, tweakers, driver installer) |
+| `-IncludeRisky` | Include flagged packages within the selected tiers; selecting Apps already includes every Apps package |
 | `-NoAdmin` | Skip packages known to need a UAC prompt |
 | `-Force` | Replace config files even if unchanged-looking |
 | `-Unattended` | No questions; update `~\.pwsh` in place |

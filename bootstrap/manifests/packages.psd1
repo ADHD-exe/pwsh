@@ -80,8 +80,8 @@
         @{ Tier = 'Apps';  Name = 'RDCMan';      Id = 'Microsoft.Sysinternals.RDCMan'; Command = '' }
         @{ Tier = 'Apps';  Name = 'Bulk Crap Uninstaller'; Id = 'Klocman.BulkCrapUninstaller'; Command = '' }
 
-        # Risky to apply unattended: kept in Apps, flagged Admin, and skipped
-        # entirely unless you also pass -IncludeRisky.
+        # Flagged for extra care. These remain opt-in with the Apps tier; selecting Apps includes
+        # them along with the rest of that tier.
         @{ Tier = 'Apps';  Name = 'simplewall';  Id = 'Henry++.simplewall';      Command = '';       Paths = @('%ProgramFiles%\simplewall\simplewall.exe'); Admin = $true; Risky = $true; Note = 'host firewall - will block traffic until configured' }
         @{ Tier = 'Apps';  Name = 'Winaero Tweaker'; Id = 'winaero.tweaker';     Command = '';       Paths = @('%ProgramFiles%\Winaero Tweaker\WinaeroTweaker.exe'); Risky = $true }
         @{ Tier = 'Apps';  Name = 'DISMTools';   Id = 'CodingWondersSoftware.DISMTools.Stable'; Command = ''; Admin = $true; Risky = $true }

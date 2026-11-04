@@ -12,7 +12,11 @@
 
 .PARAMETER Tier
     Package tiers to install. Default: Core, Shell, Tools.  Tools = Notepad++, AutoHotkey,
-    Everything, CMake, Python ...  Apps = the optional desktop apps.
+    Everything, CMake, Python ... Apps = optional desktop apps, including all flagged apps.
+
+.PARAMETER IncludeRisky
+    Include flagged packages within the selected tiers. Selecting the Apps tier already includes
+    every Apps package, including flagged packages.
 
 .PARAMETER Only
     Run only the named steps (e.g. -Only Git, or -Only Path).
