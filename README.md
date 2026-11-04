@@ -21,17 +21,32 @@ everything else alone. Anything it replaces is backed up first.
 ## Install
 
 Open **PowerShell** (the blue "Windows PowerShell" that ships with Windows is fine —
-you do **not** need to run it as administrator) and paste:
+you do **not** need to run it as administrator). Choose one:
+
+### 1. Standard setup (recommended)
+
+Installs the complete shell environment: the **Core**, **Shell**, and **Tools** tiers,
+plus the repo's profile, fonts, themes, and configuration. It does **not** install the
+optional personal desktop apps listed in option 2.
 
 ```powershell
 irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1 | iex
 ```
 
-With options (same one line, extra switches at the end). This example also installs the optional **Apps** tier:
+### 2. Standard setup plus optional desktop apps
+
+Use this if you also want the **Apps** tier. It installs everything in option 1, plus
+Starship, Tailscale, Spotify, Equibop, Outlook for Windows, Paint.NET, GIMP, VLC,
+OBS Studio, ShareX, qBittorrent, Signal, Telegram, Proton Authenticator, Ollama,
+Syncthing, SyncTrayzor, Spicetify, BetterTrumpet, RDCMan, and Bulk Crap Uninstaller.
+Starship is optional and is not used by the profile (which uses Oh My Posh).
 
 ```powershell
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ADHD-exe/pwsh/main/install.ps1))) -Tier Core,Shell,Tools,Apps
 ```
+
+The four risky Apps—simplewall, Winaero Tweaker, DISMTools, and NVCleanstall—are
+excluded from both choices unless you explicitly add `-IncludeRisky`.
 
 ### Safer: download, read, then run
 
