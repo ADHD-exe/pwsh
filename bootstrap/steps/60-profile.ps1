@@ -1,5 +1,5 @@
 # =============================================================================
-# 60-profile.ps1 - install the PowerShell 7 profile stub
+# 60-profile.ps1 - install profile stubs for PowerShell 7 and Windows PowerShell
 #
 # The real profile lives in the repo (<InstallDir>\profile). What goes into
 # Documents\PowerShell\Microsoft.PowerShell_profile.ps1 is a tiny managed stub
@@ -8,6 +8,8 @@
 #   * the stub never needs to know OneDrive/Documents redirection details;
 #   * your own additions go in Microsoft.PowerShell_profile.local.ps1 (next to
 #     the stub), which the repo profile loads last and the installer never touches.
+# Windows PowerShell 5.1 gets a separate stub that redirects interactive sessions
+# to PowerShell 7 because the repo profile uses syntax unavailable in 5.1.
 # =============================================================================
 
 $script:StubBegin = '# >>> pwsh bootstrap (managed - do not edit between these markers) >>>'
@@ -17,6 +19,12 @@ function Get-Pwsh7ProfileDirectory {
     $docs = [Environment]::GetFolderPath('MyDocuments')
     if (-not $docs) { $docs = Join-Path $HOME 'Documents' }
     return (Join-Path $docs 'PowerShell')
+}
+
+function Get-WindowsPowerShellProfileDirectory {
+    $docs = [Environment]::GetFolderPath('MyDocuments')
+    if (-not $docs) { $docs = Join-Path $HOME 'Documents' }
+    return (Join-Path $docs 'WindowsPowerShell')
 }
 
 function New-ProfileStub {
@@ -35,9 +43,72 @@ $script:StubEnd
 "@
 }
 
+function New-WindowsPowerShellRedirectStub {
+    return @"
+$script:StubBegin
+# The repo profile requires PowerShell 7; redirect interactive 5.1 sessions to it.
+`$rabbitArgs = [Environment]::GetCommandLineArgs()
+`$rabbitNonInteractive = [bool](`$rabbitArgs | Where-Object {
+    `$_ -match '^-{1,2}(NonInteractive|Command|EncodedCommand|File|InputFormat|OutputFormat)$'
+})
+if (-not `$rabbitNonInteractive) {
+    `$rabbitPwsh = Get-Command pwsh.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    `$rabbitPwshPath = if (`$rabbitPwsh) { `$rabbitPwsh.Source } else { `$null }
+    if (-not `$rabbitPwshPath) {
+        `$rabbitCandidate = Join-Path `$env:ProgramFiles 'PowerShell\7\pwsh.exe'
+        if (Test-Path -LiteralPath `$rabbitCandidate) { `$rabbitPwshPath = `$rabbitCandidate }
+    }
+
+    if (`$rabbitPwshPath) {
+        Write-Host 'Starting PowerShell 7 with the installed profile...' -ForegroundColor Cyan
+        & `$rabbitPwshPath -NoLogo
+        exit
+    }
+
+    Write-Warning 'PowerShell 7 was not found. Run the pwsh installer, then start Windows PowerShell again.'
+}
+$script:StubEnd
+"@
+}
+
 function Invoke-ProfileStep {
     [CmdletBinding(SupportsShouldProcess)]
     param([Parameter(Mandatory)][string]$InstallDir)
+
+    $legacyDir = Get-WindowsPowerShellProfileDirectory
+    $legacyTarget = Join-Path $legacyDir 'Microsoft.PowerShell_profile.ps1'
+    $legacyStub = (New-WindowsPowerShellRedirectStub).Replace("`r`n", "`n")
+    $legacyExisting = $null
+    if (Test-Path -LiteralPath $legacyTarget) {
+        $legacyExisting = (Get-Content -LiteralPath $legacyTarget -Raw).Replace("`r`n", "`n")
+    }
+
+    if ($legacyExisting -and $legacyExisting.Contains($script:StubBegin)) {
+        $pattern = '(?s)' + [regex]::Escape($script:StubBegin) + '.*?' + [regex]::Escape($script:StubEnd)
+        $legacyNew = [regex]::Replace($legacyExisting, $pattern, { param($m) $legacyStub.TrimEnd() })
+        if ($legacyNew.TrimEnd() -ne $legacyExisting.TrimEnd()) {
+            if ($PSCmdlet.ShouldProcess($legacyTarget, 'refresh Windows PowerShell redirect')) {
+                [void](Backup-File -Path $legacyTarget)
+                Write-Utf8NoBom -Path $legacyTarget -Content $legacyNew
+                Write-Ok 'Windows PowerShell profile redirect refreshed'
+                Add-Result -Step 'profile' -Item 'Windows PowerShell redirect' -Status 'Ok' -Detail 'managed block refreshed'
+            }
+        }
+        else {
+            Write-Ok 'Windows PowerShell profile redirect already current'
+            Add-Result -Step 'profile' -Item 'Windows PowerShell redirect' -Status 'Skipped' -Detail 'already current'
+        }
+    }
+    elseif ($PSCmdlet.ShouldProcess($legacyTarget, 'install Windows PowerShell redirect')) {
+        New-Item -ItemType Directory -Path $legacyDir -Force | Out-Null
+        if ($legacyExisting) {
+            $backup = Backup-File -Path $legacyTarget
+            Write-Warn "Existing Windows PowerShell 5.1 profile backed up -> $backup (interactive 5.1 sessions will now redirect to PowerShell 7)."
+        }
+        Write-Utf8NoBom -Path $legacyTarget -Content ($legacyStub.TrimEnd() + "`n")
+        Write-Ok "Windows PowerShell profile redirect installed -> $legacyTarget"
+        Add-Result -Step 'profile' -Item 'Windows PowerShell redirect' -Status 'Ok' -Detail $legacyTarget
+    }
 
     $dir     = Get-Pwsh7ProfileDirectory
     $target  = Join-Path $dir 'Microsoft.PowerShell_profile.ps1'

@@ -63,7 +63,7 @@
             Type               = $fg.cyan
             Number             = $fg.brightYellow
             Member             = $fg.brightBlue
-            DefaultToken       = $fg.foreground
+            Default            = $fg.foreground
         }
     } catch {
         Write-Warning "Night City: could not apply PSReadLine colors - $($_.Exception.Message)"

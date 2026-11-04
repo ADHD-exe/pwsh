@@ -59,6 +59,20 @@ function Invoke-VerifyStep {
     # ---- profile: load it in a clean child shell and time it ----------------
     $pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
     $stub = Join-Path (Get-Pwsh7ProfileDirectory) 'Microsoft.PowerShell_profile.ps1'
+    $windowsPowerShellStub = Join-Path (Get-WindowsPowerShellProfileDirectory) 'Microsoft.PowerShell_profile.ps1'
+    if (-not (Test-Path -LiteralPath $windowsPowerShellStub)) {
+        Write-Warn "Windows PowerShell 5.1 redirect not found: $windowsPowerShellStub"
+        Add-Result -Step 'verify' -Item 'Windows PowerShell profile' -Status 'Warn' -Detail 'redirect stub missing - re-run the profile step'
+    }
+    elseif (-not ((Get-Content -LiteralPath $windowsPowerShellStub -Raw) -match 'Starting PowerShell 7')) {
+        Write-Warn 'Windows PowerShell 5.1 profile does not contain the PowerShell 7 redirect.'
+        Add-Result -Step 'verify' -Item 'Windows PowerShell profile' -Status 'Warn' -Detail 'redirect stub is not current - re-run the profile step'
+    }
+    else {
+        Write-Ok 'Windows PowerShell 5.1 redirects interactive sessions to PowerShell 7'
+        Add-Result -Step 'verify' -Item 'Windows PowerShell profile' -Status 'Ok' -Detail 'interactive sessions redirect to PowerShell 7'
+    }
+
     if ($pwsh -and -not (Test-Path -LiteralPath $stub)) {
         Write-Warn "Profile stub not found: $stub"
         Add-Result -Step 'verify' -Item 'profile' -Status 'Warn' -Detail 'profile stub missing - run: install.ps1 -Only Profile'

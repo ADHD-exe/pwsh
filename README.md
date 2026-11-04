@@ -139,7 +139,7 @@ Read this before your first run.
 | 6 | **npm** | Global npm packages the profile's aliases use (`claude`) |
 | 7 | **modules** | Installs PowerShell modules for PowerShell 7 (CurrentUser), then imports each in a clean process to prove they load |
 | 8 | **fonts** | Installs the bundled Nerd Fonts for the current user (no admin) |
-| 9 | **profile** | Writes a small stub to `Documents\PowerShell\Microsoft.PowerShell_profile.ps1` that loads the repo profile |
+| 9 | **profile** | Writes a PowerShell 7 profile stub and a Windows PowerShell 5.1 redirect. Starting 5.1 interactively opens PowerShell 7 with the repo profile; non-interactive 5.1 commands are left alone. An existing 5.1 profile is backed up, not run in PowerShell 7. |
 | 10 | **terminal** | Merges `settings\settings.json` into Windows Terminal's settings (backup first) |
 | 11 | **configs** | Deploys Atuin, fzf, git ignore, OpenCode, and — if installed — Notepad++, Everything, AutoHotkey |
 | 12 | **path** | Adds the executable folders listed under [System PATH changes](#system-path-changes) to the **system PATH** (one UAC prompt) |
@@ -340,8 +340,9 @@ All copied from `settings\`. If a target differs it is backed up as `NAME.bak-<t
 | Oh My Posh theme | **not copied** — the profile loads `settings\oh-my-rabbit.omp.json` straight from the repo | — |
 
 When themes are enabled, the PowerShell 7.6.9 profile also loads its Night City colors automatically. The Windows
-PowerShell 5.1 theme script is copied to `Documents\WindowsPowerShell\Themes\` for dot-sourcing from that shell's
-profile. VS Code gets a local Dark High Contrast theme extension; select it from the Color Theme picker.
+PowerShell 5.1 theme script is copied to `Documents\WindowsPowerShell\Themes\` for reference; interactive Windows
+PowerShell 5.1 sessions redirect to PowerShell 7, which loads the installed repo profile. VS Code gets a local
+Dark High Contrast theme extension; select it from the Color Theme picker.
 
 Notepad++ and Everything rewrite their config when they exit, so the installer closes them **gracefully**
 (never killed), replaces the files, then reopens them. If an app will not close, the file is still replaced and a

@@ -15,6 +15,7 @@ New-Item -ItemType Directory -Path $sandbox | Out-Null
 $env:HOME = $sandbox; $env:USERPROFILE = $sandbox
 Set-Variable -Name HOME -Value $sandbox -Force -Scope Global -ErrorAction SilentlyContinue
 function Get-Pwsh7ProfileDirectory { Join-Path $env:HOME 'Documents\PowerShell' }
+function Get-WindowsPowerShellProfileDirectory { Join-Path $env:HOME 'Documents\WindowsPowerShell' }
 
 # fake install dir containing the repo profile
 $installDir = Join-Path $sandbox '.pwsh'
@@ -24,19 +25,30 @@ Copy-Item (Join-Path $root 'profile/Microsoft.PowerShell_profile.ps1') (Join-Pat
 $profDir = Get-Pwsh7ProfileDirectory
 $target  = Join-Path $profDir 'Microsoft.PowerShell_profile.ps1'
 $local   = Join-Path $profDir 'Microsoft.PowerShell_profile.local.ps1'
+$legacyDir = Get-WindowsPowerShellProfileDirectory
+$legacyTarget = Join-Path $legacyDir 'Microsoft.PowerShell_profile.ps1'
 Write-Host "profile dir: $profDir"
 
 Write-Host "`n1. fresh machine"
+New-Item -ItemType Directory -Path $legacyDir -Force | Out-Null
+Set-Content -LiteralPath $legacyTarget 'Write-Host "my Windows PowerShell profile"'
 Invoke-ProfileStep -InstallDir $installDir
 Assert (Test-Path $target) 'stub written'
 Assert ((Get-Content $target -Raw) -match [regex]::Escape($installDir)) 'stub points at the install dir'
 Assert (Test-Path $local) 'local extension file created'
+Assert (Test-Path $legacyTarget) 'Windows PowerShell redirect installed'
+Assert ((Get-Content $legacyTarget -Raw) -match 'Starting PowerShell 7') 'redirect starts PowerShell 7'
+Assert ((Get-Content $legacyTarget -Raw) -match 'NonInteractive\|Command\|EncodedCommand\|File') 'redirect avoids non-interactive invocations'
+$legacyBackup = Get-ChildItem $legacyDir -Filter 'Microsoft.PowerShell_profile.ps1.bak-*' | Select-Object -First 1
+Assert (@(Get-ChildItem $legacyDir -Filter 'Microsoft.PowerShell_profile.ps1.bak-*').Count -eq 1) 'existing Windows PowerShell profile backed up'
+Assert ([bool]((Get-Content -LiteralPath $legacyBackup.FullName -Raw) -match 'my Windows PowerShell profile')) 'original Windows PowerShell profile preserved'
 
 Write-Host "`n2. rerun is idempotent"
 $before = Get-Content $target -Raw
 Invoke-ProfileStep -InstallDir $installDir
 Assert ((Get-Content $target -Raw) -eq $before) 'stub unchanged'
 Assert (@(Get-ChildItem $profDir -Filter '*.bak-*').Count -eq 0) 'no spurious backup'
+Assert ((Get-Content $legacyTarget -Raw) -match 'Starting PowerShell 7') 'redirect unchanged on rerun'
 
 Write-Host "`n3. install dir moves -> managed block refreshed, user text outside it kept"
 Add-Content $target "`n# my own line"
@@ -48,6 +60,7 @@ $after = Get-Content $target -Raw
 Assert ($after -match 'elsewhere') 'block now points at the new dir'
 Assert ($after -match '# my own line') 'text outside the markers survived'
 Assert (@(Get-ChildItem $profDir -Filter '*.bak-*').Count -ge 1) 'backup made before editing'
+Assert ((Get-Content $legacyTarget -Raw) -match 'Starting PowerShell 7') 'PowerShell 5.1 redirect remains installed after repo move'
 
 Write-Host "`n4. someone else's profile is preserved"
 Remove-Item $profDir -Recurse -Force
@@ -68,8 +81,10 @@ Assert (@(Get-ChildItem $profDir -Filter '*.bak-*').Count -eq 1) 'old Rabbit pro
 
 Write-Host "`n6. -WhatIf changes nothing"
 Remove-Item $profDir -Recurse -Force
+Remove-Item $legacyDir -Recurse -Force
 Invoke-ProfileStep -InstallDir $installDir -WhatIf
 Assert (-not (Test-Path $target)) 'nothing written in a dry run'
+Assert (-not (Test-Path $legacyTarget)) 'PowerShell 5.1 redirect also unchanged in dry run'
 
 Remove-Item $sandbox -Recurse -Force -ErrorAction SilentlyContinue
 if ($failures) { Write-Host "`n$failures failure(s)" -ForegroundColor Red; exit 1 }
