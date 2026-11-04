@@ -1,4 +1,5 @@
 # pwsh — one-command Windows terminal environment
+<img width="1216" height="716" alt="WindowsTerminalScreenShot" src="https://github.com/user-attachments/assets/32446f97-73e2-4a93-a752-6f157914910f" />
 
 Turns a fresh Windows install into a complete working shell: PowerShell 7, Windows Terminal,
 the `oh-my-rabbit` Oh My Posh theme, Nerd Fonts, a modular PowerShell profile, a modern
