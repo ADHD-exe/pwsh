@@ -25,6 +25,12 @@ function mkcd {
     Set-Location $Dir
 }
 
+function open {
+    param([Parameter(Position = 0)][string]$Path = ".")
+    if (-not (Test-Path -LiteralPath $Path)) { Write-Warning "Not found: $Path"; return }
+    Start-Process explorer.exe -ArgumentList (Resolve-Path -LiteralPath $Path).Path
+}
+
 # All four are eza in different view modes. They're functions rather than
 # aliases so they can take a path and extra flags: `ls src`, `la -s size`.
 function ls { eza --icons --group-directories-first @args }
@@ -48,6 +54,7 @@ function nav {
         "projects", "Go to Projects"
         "rc",   "Go to Recycle Bin"
         "mkcd", "Create a directory and cd into it: mkcd newdir"
+        "open", "Open a folder in Explorer (cwd if none)"
         "yy",   "Open yazi file manager (cd on exit)"
     )
 
