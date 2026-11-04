@@ -14,15 +14,40 @@ function Test-AppInstalled {
     return $false
 }
 
+function Set-JsonConfigProperty {
+    [CmdletBinding(SupportsShouldProcess)]
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Value
+    )
+
+    $config = if (Test-Path -LiteralPath $Path) {
+        ConvertTo-PlainJsonObject (Get-Content -LiteralPath $Path -Raw)
+    }
+    else { [pscustomobject]@{} }
+
+    $config | Add-Member -NotePropertyName $Name -NotePropertyValue $Value -Force
+    $content = $config | ConvertTo-Json -Depth 32
+    if ((Test-Path -LiteralPath $Path) -and ((Get-Content -LiteralPath $Path -Raw).Trim() -eq $content.Trim())) { return }
+    if (-not $PSCmdlet.ShouldProcess($Path, "set $Name")) { return }
+
+    if (Test-Path -LiteralPath $Path) { [void](Backup-File -Path $Path) }
+    Write-Utf8NoBom -Path $Path -Content $content
+    Write-Ok "Set $Name -> $Path"
+    Add-Result -Step 'configs' -Item (Split-Path $Path -Leaf) -Status 'Ok' -Detail "$Name set"
+}
+
 function Invoke-ConfigStep {
     [CmdletBinding(SupportsShouldProcess)]
     param([Parameter(Mandatory)][string]$RepoRoot, [switch]$Force)
 
     $s = Join-Path $RepoRoot 'settings'
     $h = $HOME
+    $themeDir = Join-Path $s 'themes'
 
     $themes = ($script:InstallThemes -ne $false)   # asked once at the start of the install; no = no theme anywhere
-    if (-not $themes) { Write-Dim 'Themes declined: skipping the Atuin, Yazi, fzf and Notepad++ colour themes.' }
+    if (-not $themes) { Write-Dim 'Themes declined: skipping the optional application colour themes.' }
 
     # ---- Atuin --------------------------------------------------------------
     if (Test-AppInstalled -Command 'atuin') {
@@ -61,6 +86,12 @@ function Invoke-ConfigStep {
     if (Test-AppInstalled -Command 'opencode' -Paths @('%LOCALAPPDATA%\Microsoft\WinGet\Links\opencode.exe')) {
         $ocDir = Join-Path $h '.config\opencode'
 
+        if ($themes) {
+            $ocTheme = Join-Path $ocDir 'themes\adhd.json'
+            Copy-ConfigFile -Source (Join-Path $themeDir 'opencode - adhd.json') -Target $ocTheme -Force:$Force
+            Set-JsonConfigProperty -Path (Join-Path $ocDir 'tui.json') -Name 'theme' -Value 'adhd'
+        }
+
         if (Test-Path -LiteralPath (Join-Path $ocDir 'opencode.json')) {
             Write-Warn 'opencode.json already exists - opencode.jsonc not deployed (it would be ignored or conflict).'
             Add-Result -Step 'configs' -Item 'opencode' -Status 'Skipped' -Detail 'existing opencode.json kept'
@@ -77,19 +108,57 @@ function Invoke-ConfigStep {
         # Notepad++ rewrites config.xml when it exits, so close it first (gracefully; its session snapshot
         # restores unsaved tabs), replace the files (originals are backed up), then reopen it.
         $nppTokens  = @{ '__USERPROFILE__' = $env:USERPROFILE }
-        $nppChanges = @(Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File |
+        $nppFiles = @(Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File |
             Where-Object { $themes -or $_.Name -ne 'stylers.xml' } |
             Where-Object { Test-ConfigWouldChange -Source $_.FullName -Target (Join-Path $env:APPDATA "Notepad++\$($_.Name)") -Tokens $nppTokens })
+        if ($themes) {
+            $nppThemeFile = Join-Path $themeDir 'notepad++ - Night City.xml'
+            if (Test-ConfigWouldChange -Source $nppThemeFile -Target (Join-Path $env:APPDATA 'Notepad++\themes\Night City.xml')) {
+                $nppFiles += Get-Item -LiteralPath $nppThemeFile
+            }
+        }
+        $nppChanges = $nppFiles
         $nppApp = if ($WhatIfPreference -or $nppChanges.Count -eq 0) { $null } else { Stop-AppForConfig -ProcessName 'notepad++' }
         try {
             foreach ($f in Get-ChildItem -LiteralPath (Join-Path $s 'notepad++') -Filter *.xml -File | Where-Object { $themes -or $_.Name -ne 'stylers.xml' }) {
+                $configTransform = if (-not $themes -and $f.Name -eq 'config.xml') {
+                    { param($t) $t.Replace('darkThemeName="Night City.xml"', 'darkThemeName="Deep Black.xml"') }
+                }
+                else { $null }
                 Copy-ConfigFile -Source $f.FullName -Target (Join-Path $env:APPDATA "Notepad++\$($f.Name)") `
-                    -Tokens @{ '__USERPROFILE__' = $env:USERPROFILE } -SkipIfRunning 'notepad++' -Force:$Force
+                    -Tokens @{ '__USERPROFILE__' = $env:USERPROFILE } -Transform $configTransform -SkipIfRunning 'notepad++' -Force:$Force
+            }
+            if ($themes) {
+                Copy-ConfigFile -Source (Join-Path $themeDir 'notepad++ - Night City.xml') `
+                    -Target (Join-Path $env:APPDATA 'Notepad++\themes\Night City.xml') -SkipIfRunning 'notepad++' -Force:$Force
             }
         }
         finally { Start-AppAfterConfig $nppApp }
     }
     else { Add-Result -Step 'configs' -Item 'notepad++' -Status 'Skipped' -Detail 'Notepad++ not installed (Tools tier)' }
+
+    # ---- Standalone application themes -------------------------------------
+    if ($themes) {
+        $documents = [Environment]::GetFolderPath('MyDocuments')
+        foreach ($psTheme in @(
+            @{ Name = 'powershell-7.6.9 - Night City.ps1'; Directory = (Join-Path $documents 'PowerShell\Themes') },
+            @{ Name = 'powershell-5.1 - Night City.ps1'; Directory = (Join-Path $documents 'WindowsPowerShell\Themes') }
+        )) {
+            Copy-ConfigFile -Source (Join-Path $themeDir $psTheme.Name) `
+                -Target (Join-Path $psTheme.Directory $psTheme.Name) -Force:$Force
+        }
+
+        $vscodePaths = @('%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe', '%ProgramFiles%\Microsoft VS Code\Code.exe')
+        if (Test-AppInstalled -Command 'code' -Paths $vscodePaths) {
+            $extensionDir = Join-Path $h '.vscode\extensions\adhd-exe.dark-high-contrast-theme-1.0.0'
+            Copy-ConfigFile -Source (Join-Path $themeDir 'vscode\package.json') `
+                -Target (Join-Path $extensionDir 'package.json') -Force:$Force
+            Copy-ConfigFile -Source (Join-Path $themeDir 'vscode - Default High Contrast.json') `
+                -Target (Join-Path $extensionDir 'themes\dark-high-contrast.json') -Force:$Force
+        }
+        else { Add-Result -Step 'configs' -Item 'vscode theme' -Status 'Skipped' -Detail 'Visual Studio Code not installed' }
+    }
+    else { Add-Result -Step 'configs' -Item 'application themes' -Status 'Skipped' -Detail 'themes declined' }
 
     # ---- Everything ---------------------------------------------------------
     if (Test-AppInstalled -Paths @('%ProgramFiles%\Everything\Everything.exe')) {

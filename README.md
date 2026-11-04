@@ -98,9 +98,10 @@ Read this before your first run.
   To install only the minimum, use `-Tier Core,Shell`.
 - **Open apps keep the old PATH and fonts.** Restart apps that were already running (for example
   Notepad++) to see new fonts, and open a new terminal to pick up PATH changes.
-- **Two optional extras are asked once, near the start.** (1) *Themes*: the `oh-my-rabbit` prompt theme, the
-  Windows Terminal colour scheme, and the matching Atuin, Yazi, fzf and Notepad++ colours are installed **all
-  together or not at all** - answer no and every theme is skipped. (2) *Keybinds*: whether to install
+- **Two optional extras are asked once, near the start.** (1) *Themes*: the `oh-my-rabbit` prompt theme,
+  Windows Terminal, Atuin, Yazi, fzf, Notepad++, OpenCode, PowerShell and VS Code themes are installed
+  **all together or not at all** - answer no and every theme is skipped. Themes for apps that are not installed
+  are skipped. (2) *Keybinds*: whether to install
   AutoHotkey and the program-launcher script. Answers are remembered; `-Themes Yes|No` and `-Keybinds Yes|No`
   answer in advance, and `-Unattended` reuses the remembered answers (yes the first time).
 - **There is no uninstaller.** Packages can be removed with `winget uninstall`, modules with
@@ -317,9 +318,14 @@ All copied from `settings\`. If a target differs it is backed up as `NAME.bak-<t
 | Global git ignore | `settings\git\ignore` | `~\.config\git\ignore` |
 | OpenCode | `settings\opencode\opencode.jsonc` | `~\.config\opencode\` |
 | Notepad++ (if installed) | `settings\notepad++\*.xml` | `%APPDATA%\Notepad++\` |
+| Additional themes (if the app is installed) | `settings\themes\` | Windows Terminal settings, `%APPDATA%\Notepad++\themes\`, `~\.config\opencode\themes\`, `Documents\PowerShell\Themes\`, `Documents\WindowsPowerShell\Themes\`, and the VS Code extensions folder |
 | Everything (if installed) | `settings\everything\Everything.ini` | `%APPDATA%\Everything\` |
 | AutoHotkey launcher script (if you chose it) | `settings\autohotkey\keybinds.ahk` | `Documents\AutoHotkey\` |
 | Oh My Posh theme | **not copied** — the profile loads `settings\oh-my-rabbit.omp.json` straight from the repo | — |
+
+When themes are enabled, the PowerShell 7.6.9 profile also loads its Night City colors automatically. The Windows
+PowerShell 5.1 theme script is copied to `Documents\WindowsPowerShell\Themes\` for dot-sourcing from that shell's
+profile. VS Code gets a local Dark High Contrast theme extension; select it from the Color Theme picker.
 
 Notepad++ and Everything rewrite their config when they exit, so the installer closes them **gracefully**
 (never killed), replaces the files, then reopens them. If an app will not close, the file is still replaced and a

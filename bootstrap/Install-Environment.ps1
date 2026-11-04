@@ -32,7 +32,7 @@
 
 .PARAMETER Themes
     Ask (default), Yes or No. The installer asks ONCE whether to install all the colour themes together
-    (Oh My Posh prompt theme, Windows Terminal colour scheme, Atuin, Yazi, fzf colours, Notepad++ styles).
+    (Oh My Posh, Windows Terminal, Atuin, Yazi, fzf, Notepad++, OpenCode, PowerShell, and VS Code).
     No skips every theme; Yes installs them all. -Unattended with Ask uses the remembered answer (Yes the first time).
 
 .PARAMETER Keybinds
@@ -208,7 +208,7 @@ try {
     $needsChoices = (-not $Only) -or [bool]@('packages', 'terminal', 'configs', 'profile' | Where-Object { $Only -contains $_ })
     $noAsk        = (-not $needsChoices) -or $ResumeAfterPath
 
-    $themesPrompt   = 'Install the colour themes (prompt, terminal, Atuin, Yazi, fzf, Notepad++)? All together, or none at all.'
+    $themesPrompt   = 'Install the colour themes (prompt, terminal, Atuin, Yazi, fzf, Notepad++, OpenCode, PowerShell, VS Code)? All together, or none at all.'
     $keybindsPrompt = 'Download AutoHotkey and the program-launcher keybinds script (Win+Enter, Win+B, Win+N ...)?'
     $script:InstallThemes   = Resolve-Choice -Name 'themes'   -Setting $Themes   -Unattended:$Unattended -NoAsk:$noAsk -Prompt $themesPrompt
     $script:InstallKeybinds = Resolve-Choice -Name 'keybinds' -Setting $Keybinds -Unattended:$Unattended -NoAsk:$noAsk -Prompt $keybindsPrompt

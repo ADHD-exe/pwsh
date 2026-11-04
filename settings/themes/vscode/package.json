@@ -1,0 +1,22 @@
+{
+  "name": "dark-high-contrast-theme",
+  "displayName": "Dark High Contrast Theme",
+  "description": "Locally installed Dark High Contrast color theme.",
+  "version": "1.0.0",
+  "publisher": "adhd-exe",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Dark High Contrast",
+        "uiTheme": "vs-dark",
+        "path": "./themes/dark-high-contrast.json"
+      }
+    ]
+  }
+}

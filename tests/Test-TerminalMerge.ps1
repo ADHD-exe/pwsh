@@ -12,6 +12,11 @@ function Assert { param([bool]$Condition, [string]$Name)
 }
 
 $template = ConvertTo-PlainJsonObject (Get-Content (Join-Path $root 'settings/settings.json') -Raw)
+$nightCityTheme = Join-Path $root 'settings/themes/windows-terminal - Night City.json'
+Add-TerminalThemeScheme -Settings $template -ThemePath $nightCityTheme
+Add-TerminalThemeScheme -Settings $template -ThemePath $nightCityTheme
+Assert (@($template.schemes | Where-Object name -eq 'Night City').Count -eq 1) 'Night City theme added once (repeat install is idempotent)'
+Assert ((@($template.profiles.list | Where-Object name -eq 'Pwsh').colorScheme) -eq 'Night City') 'Pwsh profile selects Night City'
 
 # A machine file as Windows Terminal generates it: comments, extra profiles, other defaults.
 $machineText = @'
@@ -45,7 +50,8 @@ Assert (@($merged.profiles.list | Where-Object name -eq 'Ubuntu').Count -eq 1)  
 Assert (@($merged.profiles.list | Where-Object name -eq 'Pwsh').Count -eq 1)       'template Pwsh profile added'
 Assert ((@($merged.profiles.list | Where-Object name -eq 'Pwsh').commandline) -eq 'pwsh.exe') 'Pwsh profile launches pwsh.exe via PATH (not the MSIX alias)'
 Assert (@($merged.schemes | Where-Object name -eq 'MachineScheme').Count -eq 1)    'machine-only scheme kept'
-Assert (@($merged.schemes | Where-Object name -eq 'ADHD').Count -eq 1)             'template ADHD scheme added'
+Assert (@($merged.schemes | Where-Object name -eq 'ADHD').Count -eq 1)             'template ADHD scheme retained'
+Assert (@($merged.schemes | Where-Object name -eq 'Night City').Count -eq 1)       'template Night City scheme added'
 Assert (@($merged.keybindings | Where-Object keys -eq 'ctrl+shift+c').Count -eq 1) 'machine-only keybinding kept'
 Assert ($merged.keybindings.Count -eq $template.keybindings.Count + 1)             'keybindings: template + 1 machine-only, no duplicates'
 Assert ($merged.actions.Count -eq $template.actions.Count)                         'actions merged without duplicates'

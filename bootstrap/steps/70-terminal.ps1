@@ -16,6 +16,11 @@ function Invoke-TerminalStep {
 
     $template = ConvertTo-PlainJsonObject (Get-Content -LiteralPath $templatePath -Raw)
 
+    if ($script:InstallThemes -ne $false) {
+        $nightCityPath = Join-Path $RepoRoot 'settings\themes\windows-terminal - Night City.json'
+        Add-TerminalThemeScheme -Settings $template -ThemePath $nightCityPath
+    }
+
     # Themes declined: leave out the colour schemes and every colorScheme selection (the user's own are untouched).
     if ($script:InstallThemes -eq $false) {
         $template.PSObject.Properties.Remove('schemes')

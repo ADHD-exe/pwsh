@@ -47,6 +47,18 @@ function ConvertTo-PlainJsonObject {
     return ($Text | ConvertFrom-Json -ErrorAction Stop)
 }
 
+function Add-TerminalThemeScheme {
+    param(
+        [Parameter(Mandatory)]$Settings,
+        [Parameter(Mandatory)][string]$ThemePath
+    )
+
+    $theme = ConvertTo-PlainJsonObject (Get-Content -LiteralPath $ThemePath -Raw)
+    if (-not $theme.name) { throw "Windows Terminal theme has no name: $ThemePath" }
+
+    $Settings.schemes = @($Settings.schemes | Where-Object { $_.name -ne $theme.name }) + $theme
+}
+
 function Merge-ObjectByKey {
     <# Merges two arrays of objects on a key property. Template entries replace same-key machine entries; order = machine first, then new template entries. #>
     param($Machine, $Template, [Parameter(Mandatory)][string]$KeyScript)

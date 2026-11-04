@@ -163,6 +163,11 @@ if ($RabbitHasReadLine) {
 }
 Write-RabbitTrace 'PSReadLine'
 
+if ($global:RabbitThemeEnabled -and $PSVersionTable.PSVersion -ge [version]'7.6.9') {
+    $nightCityTheme = Join-Path $global:RabbitSettings 'themes\powershell-7.6.9 - Night City.ps1'
+    if (Test-Path -LiteralPath $nightCityTheme) { . $nightCityTheme }
+}
+
 function yy {
     if (-not (Get-Command yazi -ErrorAction SilentlyContinue)) {
         Write-Warning 'yazi is not installed - re-run the installer to add it.'

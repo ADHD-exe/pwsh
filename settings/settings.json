@@ -220,7 +220,7 @@
                     "window"
                 ],
                 "closeOnExit": "never",
-                "colorScheme": "ADHD",
+                "colorScheme": "Night City",
                 "commandline": "pwsh.exe",
                 "cursorHeight": 25,
                 "cursorShape": "filledBox",
